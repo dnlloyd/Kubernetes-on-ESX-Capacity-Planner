@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {defaults,reconcile,distribute,clientCapacity,normalizeState,validateConfig,assignHosts,defaultDeductions} from '../model.mjs';
+const cfg=defaults();cfg.affinityEnabled=false;cfg.hosts=[100,100,100];cfg.clusters=cfg.clusters.slice(0,1);for(const type of ['etcd','master','ingress'])cfg.clusters[0].profiles[type].count=0;
+cfg.clusters[0].profiles.worker={count:186,cpu:12,memory:92677260*1024/1e9};
+const s=distribute(reconcile(cfg)),before=JSON.stringify(s),c=clientCapacity(s,'k8s-1');
+assert.equal(c.placed,186);assert.ok(Math.abs(c.cpu-2082.705)<1e-8);assert.ok(Math.abs(c.memoryGiB-14629.364107213)<1e-6);assert.equal(JSON.stringify(s),before);
+assert.deepEqual(normalizeState(JSON.parse(JSON.stringify(s))),s);
+const old=structuredClone(s);delete old.clusters[0].deductions;assert.deepEqual(normalizeState(old).clusters[0].deductions,defaultDeductions());
+const scarce=assignHosts({...s,affinityEnabled:true,hosts:[1,1,1]});const a=clientCapacity(scarce,'k8s-1');assert.equal(a.placed,6);assert.equal(a.unplaced,180);assert.equal(a.grossCpu,72);
+const zero=structuredClone(s);zero.clusters[0].deductions={nodeCpu:0,nodeMemoryGiB:0,servicesCpu:0,servicesMemoryGiB:0};assert.equal(clientCapacity(zero,'k8s-1').cpu,2232);
+const excessive=structuredClone(s);excessive.clusters[0].deductions.nodeCpu=13;assert.equal(clientCapacity(excessive,'k8s-1').cpu,0);assert.ok(clientCapacity(excessive,'k8s-1').nodeOverdrawn);
+assert.throws(()=>validateConfig({...s,clusters:[{...s.clusters[0],deductions:{...defaultDeductions(),servicesCpu:-1}}]}),/deductions/);
+console.log('PASS: measured Capacity/Allocatable math and GiB conversion; fixed service deduction once per cluster; placed workers only; legacy defaults; export/import; zero and excessive reserves; invalid values; no mutation.');

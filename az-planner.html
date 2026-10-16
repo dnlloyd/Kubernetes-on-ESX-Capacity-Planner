@@ -1,0 +1,664 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#183b33"><title>K8s CAPPlanner · VM placement simulator</title><style>@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap');
+:root{font-family:'DM Sans',system-ui,sans-serif;color:#233c35;background:#f5f6f2;font-synthesis:none;--green:#235c48;--muted:#77817c;--border:#e1e6df;--etcd:#946947;--master:#7a66ad;--ingress:#4c85b1;--worker:#448269}
+*{box-sizing:border-box}body{margin:0}button,input,select{font:inherit}button{cursor:pointer}button:disabled{opacity:.4;cursor:default}button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #87bca5;outline-offset:3px}button,input,select{transition:border-color .15s,background .15s} .topbar{height:80px;background:#fff;border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 3.2%;gap:58px}.brand{font:800 23px 'Manrope',sans-serif;letter-spacing:-1px;color:#214f40;text-decoration:none;display:flex;align-items:center;gap:0}.brand>span:last-child{font-weight:500}.brand-icon{background:#214f40;color:white;width:37px;height:37px;border-radius:10px;text-align:center;line-height:35px;margin-right:11px;font-size:28px}.nav-label{font-size:13px;color:#8b938d;display:flex;gap:18px}.nav-label strong{color:#53665c;font-weight:500}.local-pill{margin-left:auto;font-size:12px;background:#f3f6f0;padding:8px 13px;border-radius:20px;color:#54735d;white-space:nowrap}i{display:inline-block;width:6px;height:6px;background:#67a17b;border-radius:50%;margin-right:6px}main{max-width:1700px;margin:auto;padding:39px 3.2% 22px}.page-heading{display:flex;justify-content:space-between;align-items:center;margin-bottom:30px;gap:20px}.eyebrow{font-size:10px;font-weight:700;letter-spacing:2px;color:#7d8d80;margin-bottom:10px}h1{font-family:'Manrope',sans-serif;font-weight:700;letter-spacing:-1.25px;font-size:32px;margin:0 0 10px}p{margin:0}.page-heading p{font-size:14px;color:var(--muted)}.file-actions{display:flex;gap:9px}.button{padding:11px 15px;border-radius:7px;border:1px solid var(--border);font-size:12px;font-weight:600;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:40px}.button.secondary{background:#fff;color:#53665d}.button.secondary:hover:not(:disabled){background:#edf3ed;border-color:#a8bcae}.button.primary{background:var(--green);border-color:var(--green);color:#fff;box-shadow:0 2px 3px #235c4810}.button.primary:hover{background:#184b39}.workspace{display:grid;grid-template-columns:310px minmax(0,1fr);gap:26px;align-items:start}.configuration{background:#fff;border:1px solid var(--border);border-radius:11px;overflow:hidden}.panel-heading{display:flex;align-items:center;justify-content:space-between;padding:21px 22px;border-bottom:1px solid var(--border)}h2{font-family:'Manrope',sans-serif;font-size:16px;font-weight:700;margin:0;letter-spacing:-.3px}.small-label{font:11px monospace;color:#9ea79f}.configuration section{padding:23px 22px;border-bottom:1px solid var(--border)}.section-heading{display:flex;gap:9px;align-items:center;margin-bottom:9px}h3{font-size:13px;margin:0;font-weight:600}.section-icon{color:#60816e;font-size:17px}.help{font-size:11px;line-height:1.7;color:#8a948b}.two-fields{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:18px 0 23px}label{font-size:11px;color:#64756a;display:block}label>span{color:#9da69e;float:right;font-size:10px}input[type=number]{width:100%;border:1px solid #dfe5dc;border-radius:6px;padding:10px 9px;background:#fcfdfb;color:#324b3d;font-size:13px;margin-top:7px;min-width:0;appearance:textfield}input[type=number]::-webkit-inner-spin-button{appearance:none}input:hover{border-color:#adc1b2}.field-title{font-size:9px;letter-spacing:1.4px;color:#8a968d;font-weight:700;margin-bottom:12px}.host-counts{display:flex;gap:9px}.host-counts label{flex:1}.host-counts input{padding:9px}.host-counts label>span{float:none;color:#759281;margin-right:4px}.profile-head,.profile-row{display:grid;grid-template-columns:1fr 48px 48px 48px;gap:7px;align-items:center}.profile-head{font-size:9px;color:#97a195;margin:19px 0 9px}.profile-head span:not(:first-child){text-align:center}.profile-row{margin-bottom:8px}.profile-row input{margin:0;padding:9px 5px;text-align:center;font-size:12px}.type-label{font-size:11px;display:flex;gap:6px;align-items:center}.type-dot{width:6px;height:6px;border-radius:2px;background:currentColor}.type-etcd{color:var(--etcd)}.type-master{color:var(--master)}.type-ingress{color:var(--ingress)}.type-worker{color:var(--worker)}.footer-help{margin-top:13px;font-size:10px}.config-footer{padding:19px 22px 21px}.full{width:100%;justify-content:space-between}.config-footer>span{display:block;text-align:center;font-size:9px;color:#99a196;margin-top:11px}.model-note{background:#f7f9f4;padding:17px 22px;display:flex;gap:10px;color:#76917d}.model-note p{font-size:11px;color:#637d6a;line-height:1.7}.model-note small{display:block;font-size:10px;color:#8f9a8b;margin-top:4px}.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:15px;margin-bottom:25px}.stat{background:#fff;border:1px solid var(--border);border-radius:9px;padding:20px;position:relative}.stat-title{font-size:10px;color:#7f8c82;font-weight:500}.stat-icon{position:absolute;top:17px;right:18px;background:#f1f5ee;padding:7px;border-radius:6px;font-size:14px;color:#859780}.stat-number{font-family:'Manrope',sans-serif;font-size:29px;font-weight:700;letter-spacing:-1px;margin:10px 0 7px}.stat-number small{font-size:12px;color:#95a091;letter-spacing:0;font-weight:500;margin-left:5px}.stat-sub{font-size:10px;color:#8d988d}.stat-sub strong{font-weight:500;color:#47745c}.placement-heading{display:flex;justify-content:space-between;gap:12px;align-items:center}.placement-heading h2{font-size:18px}.placement-heading p{font-size:11px;color:#8b968c;margin-top:7px}.board-actions{display:flex;gap:8px}.board-meta{display:flex;align-items:center;justify-content:space-between;margin:24px 0 14px;font-size:10px;color:#889588;gap:10px}.legend{display:flex;gap:18px}.legend span{display:flex;align-items:center;gap:6px}.legend span:before{content:'';background:currentColor;width:6px;height:6px;border-radius:2px}.clusters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.cluster{background:#fff;border:1px solid var(--border);border-radius:10px;min-width:0;transition:background .15s,border-color .15s;overflow:hidden}.cluster.drag-over{border-color:#438c6b;background:#edf7ee;box-shadow:0 0 0 2px #6f9d7940}.cluster.over{border-color:#dca18e}.cluster-top{padding:19px 17px 16px;border-bottom:1px solid var(--border)}.cluster-title-row{display:flex;align-items:center;gap:9px}.az-icon{font-size:17px;color:#759680;background:#f1f5ed;border:1px solid #e6ece0;border-radius:7px;width:31px;height:31px;display:grid;place-items:center}.cluster h3{font-family:'Manrope',sans-serif;font-size:17px;letter-spacing:-.5px}.health{margin-left:auto;color:#729a74;font-size:9px;display:flex;align-items:center;gap:4px}.health:before{content:'';width:5px;height:5px;border-radius:50%;background:currentColor}.health.warning{color:#bb684b}.host-caption{font-size:10px;color:#89978a;margin:10px 0 18px}.resource{margin-top:14px}.resource-label{display:flex;justify-content:space-between;align-items:center;font-size:10px;color:#8a998d;margin-bottom:7px}.resource-label strong{color:#4e6654;font-size:11px;font-weight:500}.resource-label strong small{color:#9eaa9d;font-size:10px}.track{height:5px;background:#edf1e8;border-radius:10px;overflow:hidden}.fill{height:100%;background:#729a73;border-radius:10px}.resource.memory .fill{background:#a4b894}.resource.exceeded .fill{background:#c7785e}.resource-foot{font-size:9px;color:#9ba694;margin-top:5px}.resource.exceeded .resource-foot{color:#bc6a50}.vm-area{padding:15px 11px;min-height:385px;max-height:635px;overflow:auto}.vm-list-heading{display:flex;justify-content:space-between;color:#869485;font-size:9px;font-weight:600;letter-spacing:1px;margin:1px 5px 13px}.vm-list-heading span:last-child{letter-spacing:0;font-weight:400}.vm-card{display:grid;grid-template-columns:12px minmax(0,1fr) 22px;align-items:center;gap:5px;padding:10px 8px;margin-bottom:7px;border:1px solid #e5e9e1;border-radius:6px;background:#fff;cursor:grab;border-left:3px solid currentColor;box-shadow:0 1px 2px #253f2903;position:relative}.vm-card:hover{background:#fafcf8;border-color:#bdcfbf}.vm-card.dragging{opacity:.35}.grip{color:#bdc7b8;font-size:13px}.vm-name{font-size:10px;font-weight:600;display:block}.vm-spec{font-size:9px;color:#94a08e;margin-top:4px;display:block}.move-select{width:22px;border:0;color:#8d9b89;background:transparent;padding:1px;cursor:pointer;font-size:10px}.move-select option{color:#233c35}.cluster-bottom{padding:13px 15px;border-top:1px dashed var(--border);font-size:9px;color:#a0aa99;text-align:center;background:#fcfdfb}.empty{padding:65px 15px;text-align:center;font-size:12px;color:#96a28f;line-height:1.8}.board-note{display:flex;gap:9px;align-items:center;font-size:10px;color:#87937f;margin-top:16px;line-height:1.5}.board-note>span{font-size:17px}.canvas-footer{display:flex;justify-content:space-between;margin-top:24px;font-size:10px;color:#97a28e;align-items:center}.canvas-footer i{width:5px;height:5px}.text-button{background:none;border:0;font-size:10px;color:#85917d;text-decoration:underline;text-underline-offset:3px;padding:6px}.capacity-warning{margin-top:17px;padding:13px 16px;border-radius:7px;background:#faf0e9;border:1px solid #efd3c3;color:#aa6144;font-size:11px;line-height:1.7}.error{color:#b25c41;font-size:11px;line-height:1.6;margin-bottom:12px}#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);border-radius:9px;padding:13px 20px;background:#1c493a;color:#fff;font-size:12px;box-shadow:0 5px 20px #183b3320;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90vw;text-align:center;z-index:10}#toast.show{opacity:1}[hidden]{display:none!important}
+@media(min-width:1500px){.vm-card{padding:12px 10px}.vm-name{font-size:12px}.vm-spec{font-size:10px}.vm-area{max-height:700px}.profile-row{grid-template-columns:1fr 48px 48px 48px}}
+@media(max-width:1150px){.workspace{grid-template-columns:270px minmax(0,1fr);gap:18px}.configuration section,.panel-heading,.config-footer{padding-left:16px;padding-right:16px}.model-note{padding:16px}.cluster-top{padding:15px 11px}.clusters{gap:9px}.health{font-size:8px}.stat{padding:15px}.stat-icon{display:none}.board-actions .button{padding:9px}.nav-label{display:none}h1{font-size:28px}.file-actions .button{font-size:10px}.placement-heading{align-items:start;flex-direction:column;gap:13px}.profile-head,.profile-row{grid-template-columns:1fr 43px 43px 43px;gap:5px}.vm-spec{font-size:8px}}
+@media(max-width:850px){main{padding:26px 20px}.topbar{height:65px;padding:0 20px}.workspace{grid-template-columns:1fr}.configuration form{display:grid;grid-template-columns:1fr 1fr}.panel-heading,.config-footer{grid-column:1/-1}.configuration section{padding:20px}.configuration section:first-of-type{border-right:1px solid var(--border)}.model-note{display:none}.config-footer{padding:16px 20px}.full{max-width:300px;margin:auto}.profile-head,.profile-row{grid-template-columns:1fr 48px 48px 48px}.page-heading{align-items:start;flex-direction:column}.page-heading h1{font-size:29px}.placement-heading{flex-direction:row;align-items:center}.vm-spec{font-size:9px}.summary{gap:12px}.vm-area{min-height:200px;max-height:450px}}
+@media(max-width:560px){.configuration form{display:block}.configuration section:first-of-type{border-right:0}.clusters{grid-template-columns:1fr}.summary{gap:7px}.stat{padding:14px 10px}.stat-number{font-size:23px}.stat-number small{font-size:9px}.stat-title,.stat-sub{font-size:9px}.placement-heading{flex-direction:column;align-items:start}.legend{gap:13px}.board-meta{align-items:start;flex-direction:column}.vm-area{max-height:340px;min-height:100px}.cluster-top{padding:17px}.vm-name{font-size:12px}.vm-spec{font-size:10px}.cluster-title-row .health{font-size:10px}.local-pill{font-size:10px;padding:7px 10px}.brand{font-size:20px}.page-heading h1{font-size:26px}.canvas-footer{font-size:9px}.board-note{align-items:start}}
+
+.vm-card{touch-action:none;user-select:none}.move-select{touch-action:auto}.drag-ghost{position:fixed;z-index:100;pointer-events:none;box-shadow:0 10px 30px #183b3330;opacity:.95;transform:rotate(2deg)}
+.region-bar{display:flex;align-items:center;gap:28px;margin:-4px 0 26px;padding:17px 21px;background:#eaf0e7;border:1px solid #d8e2d3;border-radius:10px}.region-selector{display:flex;gap:12px;align-items:center}.region-icon{width:39px;height:39px;background:#dce7d8;display:grid;place-items:center;border-radius:8px;color:#5e8066;font-size:24px}.region-selector label{font-size:9px;letter-spacing:1.5px;font-weight:700;color:#6d876e}.region-selector select{display:block;background:transparent;border:0;border-bottom:1px solid #b7c9b3;padding:4px 18px 3px 0;margin-top:3px;font-size:19px;font-family:'Manrope',sans-serif;font-weight:700;color:#284f39;letter-spacing:-.4px;min-width:220px;cursor:pointer}.region-context{display:flex;flex-direction:column;gap:7px;border-left:1px solid #cad9c4;padding-left:28px;font-size:11px;color:#789171}.region-context strong{font-size:12px;color:#4a6c4e}.region-saved{margin-left:auto;font-size:9px;color:#8b9e84}.cluster-count{margin-left:auto;background:#eef3e8;color:#769467;border-radius:5px;padding:3px 6px;font-size:10px}.cluster-choice{margin-top:16px}.cluster-choice select,.cluster-label-field input{width:100%;min-width:0;border:1px solid #dfe5dc;border-radius:6px;padding:10px 9px;background:#fcfdfb;color:#324b3d;font-size:12px;margin-top:7px}.cluster-label-field{margin-top:13px}.cluster-editor-actions{display:flex;align-items:center;justify-content:space-between;gap:4px;margin-top:16px}.cluster-editor-actions .button{padding:7px 10px;font-size:10px;min-height:34px}.cluster-editor-actions .text-button{font-size:9px}.k8s-group{margin-bottom:13px;border:1px solid #e0e7da;border-radius:7px;background:#fbfdf8;overflow:hidden}.k8s-group summary{list-style:none;cursor:pointer;padding:13px 11px}.k8s-group summary::-webkit-details-marker{display:none}.k8s-group summary:hover{background:#f0f5eb}.group-heading{display:flex;align-items:start;justify-content:space-between;gap:8px}.group-name{font-size:11px;font-weight:700;line-height:1.5;overflow-wrap:anywhere;min-width:0;color:#496246}.group-total{font-size:9px;white-space:nowrap;color:#759366;padding-top:2px}.group-resources{font-size:10px;color:#8c9e82;margin-top:7px}.group-types{display:grid;grid-template-columns:repeat(2,1fr);gap:8px 12px;font-size:9px;margin-top:14px}.group-types span{display:flex;align-items:center;justify-content:space-between;gap:5px}.group-types strong{font-weight:500;font-size:10px;background:#f1f4ee;min-width:23px;border-radius:4px;text-align:center;padding:2px 5px}.group-open{border-top:1px solid #e7eddf;padding-top:9px;margin-top:12px;font-size:9px;color:#8d9d84;display:flex;justify-content:space-between}.group-open span{transition:transform .15s}.k8s-group[open] .group-open span{transform:rotate(180deg)}.group-vms{padding:0 7px 7px;background:#f8faf5}.group-vms .empty{padding:20px 8px}.vm-area{min-height:0;max-height:635px}.cluster-bottom{line-height:1.6}.capacity-warning{margin-top:17px}
+@media(max-width:1150px){.region-saved{display:none}.group-heading{flex-direction:column;gap:3px}.group-types{gap:7px}.group-total{padding-top:0}.group-name{font-size:10px}.group-resources{font-size:9px}}
+@media(max-width:850px){.region-bar{gap:18px;padding:14px 16px}.region-context{padding-left:18px}.region-selector select{font-size:17px;min-width:190px}.group-heading{flex-direction:row}.group-name{font-size:11px}.vm-area{max-height:530px}}
+@media(max-width:560px){.region-bar{flex-wrap:wrap;gap:16px}.region-selector{width:100%}.region-context{border-left:0;padding-left:0}.region-context span{font-size:10px}.region-selector select{min-width:220px}.group-name{font-size:12px}.group-resources{font-size:11px}.vm-area{max-height:500px}.cluster-choice select,.cluster-label-field input{font-size:13px}}
+
+.cluster-editor{border:0;border-top:1px solid #e4eadd;padding:14px 0 1px;margin:16px 0 0;min-width:0}.cluster-editor legend{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}.editor-heading{display:flex;align-items:center;justify-content:space-between}.editor-number{font-size:9px;font-weight:700;letter-spacing:1px;color:#829577}.editor-heading .text-button{font-size:9px;padding:3px 0}.cluster-editor .cluster-label-field{margin-top:10px}.cluster-editor .profile-head{margin-top:14px}.cluster-editor .profile-row{margin-bottom:6px}.vm-cluster-label{display:table;margin-top:5px;border:1px solid #e2e9db;border-radius:4px;background:#f2f6ed;padding:3px 5px;font-size:9px;color:#708567;overflow-wrap:anywhere;max-width:100%;line-height:1.3}.vm-card{align-items:center}.vm-card>div{min-width:0}.vm-area{min-height:350px;max-height:850px}.vm-spec{margin-top:6px}.cluster-editor-actions .help{font-size:9px}.cluster-editor .cluster-label-field input{padding:8px 9px}
+@media(max-width:850px){.vm-area{max-height:650px}.configuration form{align-items:start}.vm-cluster-label{font-size:9px}}
+@media(max-width:560px){.vm-area{min-height:180px;max-height:500px}.vm-cluster-label{font-size:10px}}
+
+.esx-host{border:1px solid #dbe4d4;background:#f6f9f1;border-radius:8px;margin:0 0 13px;padding:11px 8px 4px}.esx-host-heading{display:flex;justify-content:space-between;gap:5px;align-items:center;font-size:9px;color:#7d9171;margin:0 3px 8px}.host-name{font-size:12px;font-weight:700;color:#496b40}.host-resources{display:flex;flex-direction:column;gap:5px;font-size:9px;color:#839576;margin:0 3px 11px}.host-over{border-color:#d6a18a;background:#fff8f1}.host-exceeded{color:#b4694c}.esx-host.drag-over{border-color:#438c6b;box-shadow:0 0 0 2px #6f9d7940;background:#e6f2df}.empty-host{font-size:9px;padding:8px 4px 12px;color:#95a185}.pin-badge{display:inline-block;font-size:8px;font-weight:500;color:#9a794d;background:#f8efd8;border:1px solid #ebddbc;border-radius:3px;padding:2px 4px;margin-left:3px}.vm-placement{margin-top:7px}.pin-control{font-size:8px;display:flex;align-items:center;gap:5px;color:#8c9a7f}.pin-select{border:1px solid #e1e7d9;border-radius:4px;background:#fafcf7;color:#66835a;font-size:9px;padding:3px 4px;max-width:100%;min-width:0;flex:1;cursor:pointer}.worker-placement{font-size:8px;color:#98a68c}.vm-area{max-height:1000px}.board-actions{flex-wrap:wrap}.vm-name{line-height:1.6}
+@media(max-width:1150px){.host-name{font-size:11px}.esx-host-heading{align-items:start;flex-direction:column}.board-actions .button{font-size:10px}.vm-area{max-height:900px}}
+@media(max-width:850px){.vm-area{max-height:750px}.pin-control{flex-direction:column;align-items:start}.pin-select{width:100%}}
+@media(max-width:560px){.vm-area{max-height:550px}.esx-host-heading{flex-direction:row}.pin-control{flex-direction:row;align-items:center}.pin-select{width:auto}}
+
+.host-policy,.vm-host-control{display:flex;align-items:center;gap:6px;font-size:9px;color:#839778}.host-policy{margin:3px 3px 11px}.dedication-select,.vm-host-select{min-width:0;flex:1;width:100%;border:1px solid #d7e2ce;border-radius:5px;padding:5px;background:#fff;color:#5f7b52;font-size:10px;cursor:pointer}.dedicated-host{border-color:#9caf88;background:#edf4e5}.dedication-label{font-size:9px;color:#6a8259;margin:0 3px 10px;overflow-wrap:anywhere}.vm-card[draggable=false]{cursor:default}.vm-host-control{font-size:8px}.vm-host-select{padding:3px;font-size:9px}
+
+.topology-fields{margin:-6px 0 10px}.topology-fields select{display:block;width:100%;min-height:38px;margin-top:7px;border:1px solid #dfe5dc;border-radius:6px;padding:9px 7px;font-size:12px;color:#324b3d;background:#fcfdfb}.topology-help{margin-bottom:19px;font-size:10px}.host-topology{display:block;margin-top:6px;font-size:9px;color:#93a288}
+
+details.esx-host{padding:0;overflow:hidden}.host-summary{list-style:none;padding:12px 12px 10px;cursor:pointer;position:relative}.host-summary::-webkit-details-marker{display:none}.host-summary:after{content:'›';position:absolute;right:11px;top:11px;font-size:18px;color:#8b9f7b;transition:transform .15s}.esx-host[open]>.host-summary:after{transform:rotate(90deg)}.host-summary .esx-host-heading{padding-right:18px;margin:0 0 9px;flex-direction:row;align-items:center}.host-summary .host-name{font-size:12px}.host-summary .host-resources{margin:0;line-height:1.5;gap:3px}.host-summary .dedication-label{margin:8px 0 0;font-size:9px}.host-summary:hover{background:#e9f1e0}.host-summary:focus-visible{outline:3px solid #87bca5;outline-offset:-3px}.host-expanded{border-top:1px solid #dbe4d4;padding:11px 8px 4px}.host-expanded .host-policy{margin-top:0}
+
+#host-logical-cores{display:block;margin-top:7px;min-height:38px;padding:10px 9px;border:1px solid #d7e2ce;border-radius:6px;background:#edf4e5;font-size:13px;font-weight:600;color:#324b3d}.configuration .field-title{margin-top:19px}
+
+.numa-config{margin-top:18px}.numa-legend{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:18px}.numa-legend small{font-size:10px;color:#83917c}.numa-badge{display:inline-block;border:1px solid;border-radius:4px;padding:3px 5px;font-size:9px;line-height:1.4;margin-top:5px}.numa-badge.fit{color:#397449;background:#edf6eb;border-color:#bad0b0}.numa-badge.risk{color:#96571c;background:#fff4e4;border-color:#e8c295}.numa-badge.wide{color:#386aa2;background:#edf4fc;border-color:#b3cce8}.vm-numa{display:flex;flex-wrap:wrap;gap:3px;margin-top:6px}.vm-numa>span:first-child{width:100%;font-size:8px;color:#85957d}.vm-numa .numa-badge{font-size:8px;margin-top:0}.numa-estimate{margin:12px 3px;border-top:1px solid #dbe4d4;padding-top:10px}.numa-estimate-heading{font-size:10px;color:#627c55;font-weight:600;margin-bottom:7px}.numa-nodes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.numa-node{display:flex;flex-direction:column;gap:4px;font-size:8px;line-height:1.5;padding:8px;border:1px solid #bad0b0;background:#f7fbf2;border-radius:5px;color:#627f56;overflow-wrap:anywhere}.numa-node strong{font-size:10px}.numa-node.risk{background:#fff4e4;border-color:#e8c295;color:#96571c}.numa-estimate p{font-size:8px;color:#87967e;line-height:1.6;margin-top:7px}
+
+.affinity-policy{margin-top:17px;padding:12px;border:1px solid #cedcc6;border-radius:7px;background:#f1f6ed;display:flex;flex-direction:column;gap:7px;font-size:11px;color:#57734d}.affinity-policy span{font-size:10px;line-height:1.6}.unplaced-vms{border:1px solid #e8c295;background:#fff4e4;border-radius:7px;padding:10px;margin-bottom:14px}.unplaced-vms summary{font-size:12px;color:#96571c;font-weight:600;cursor:pointer}.unplaced-vms>p{font-size:10px;color:#96571c;line-height:1.6;margin:9px 0}
+
+.affinity-toggle{display:flex;align-items:center;gap:9px;cursor:pointer;color:#3f613d;font-size:12px}.affinity-toggle input{appearance:none;width:34px;height:20px;border-radius:12px;background:#a1aaa0;position:relative;flex-shrink:0;margin:0;cursor:pointer}.affinity-toggle input:before{content:'';position:absolute;left:3px;top:3px;width:14px;height:14px;background:#fff;border-radius:50%;transition:transform .15s}.affinity-toggle input:checked{background:#3a7853}.affinity-toggle input:checked:before{transform:translateX(14px)}#affinity-toggle-state{margin-left:auto;font-size:11px;font-weight:600}.affinity-policy p{font-size:10px;line-height:1.6}.affinity-policy.rules-off{background:#f3f4f2;border-color:#d6dbd3;color:#717c6d}
+
+.affinity-details{margin-top:1px}.affinity-details>summary{cursor:pointer;font-size:10px;width:fit-content;color:#62785a;padding:2px 0}.affinity-details>summary:focus-visible{outline:3px solid #87bca5;outline-offset:3px}.affinity-details-body{border-top:1px solid #d8e2d2;margin-top:9px;padding-top:10px;font-size:11px;line-height:1.7}.affinity-details-body ol{margin:10px 0;padding-left:20px}.affinity-details-body li{margin-bottom:7px}.affinity-details-body p+p{margin-top:10px}.affinity-policy .affinity-details-body p{font-size:11px}
+
+.potential-capacity{margin-top:27px;padding-top:23px;border-top:1px solid var(--border)}.potential-capacity .placement-heading p{line-height:1.6}.cluster-capacity-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:15px;margin-top:18px}.capacity-card{padding:20px;background:#fff;border:1px solid var(--border);border-radius:9px;min-width:0}.capacity-card h3{font-size:16px;color:#315d48;overflow-wrap:anywhere}.capacity-kpis{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin:18px 0 10px}.capacity-kpis strong{display:block;font-size:21px;letter-spacing:-.5px}.capacity-kpis span,.capacity-small{font-size:10px;color:#83907c;line-height:1.7}.capacity-card table{border-collapse:collapse;width:100%;font-size:11px;margin-top:13px}.capacity-card caption{text-align:left;color:#87917f;font-size:10px;margin-bottom:5px}.capacity-card th,.capacity-card td{padding:7px 3px;border-bottom:1px solid #e8ede4;text-align:right}.capacity-card th:first-child{text-align:left}.capacity-card thead th{color:#85937b;font-size:10px;font-weight:500}.capacity-card tbody th{font-weight:500}.capacity-assumptions{font-size:10px;color:#83907c;line-height:1.8;margin-top:15px}
+
+.capacity-card tfoot th,.capacity-card tfoot td{font-weight:700;border-top:2px solid #dbe4d4;border-bottom:0;color:#315d48}
+
+.scenario-files{min-width:280px;max-width:390px;width:100%;flex-shrink:0}.scenario-files>label{font-size:9px;letter-spacing:1.1px;font-weight:600;color:#81907e}.scenario-files>input{width:100%;border:1px solid #dbe3d5;border-radius:6px;padding:10px 12px;background:#fff;color:#324b3d;font-size:13px;margin-top:7px}.scenario-files .file-actions{margin-top:9px}.scenario-files>span{display:block;font-size:9px;color:#8c9886;margin-top:7px;line-height:1.6}@media(max-width:1150px){.page-heading{flex-wrap:wrap}.scenario-files{max-width:390px}}
+
+.client-budget strong{color:#315d48}.deduction-details,.configured-capacity{border-top:1px solid var(--border);margin-top:14px;padding-top:12px;font-size:11px;line-height:1.7}.deduction-details>summary,.configured-capacity>summary{cursor:pointer;color:#5a7650;font-weight:600}.deduction-body p{font-size:10px;color:#7d8976;line-height:1.8;margin:10px 0}.deduction-body h4{font-size:11px;margin:17px 0 7px}.deduction-fields{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px}.deduction-fields input{font-size:11px}.budget-warning{font-size:10px;line-height:1.7;color:#a26434;background:#fff4e4;border-radius:5px;padding:8px;margin-top:10px}.configured-capacity>p{margin-top:9px}
+
+.deduction-save{margin-top:12px;font-size:10px}
+
+.host-summary{display:flow-root}.host-vm-summary{float:right;margin-right:18px;margin-left:10px;min-width:48px;font-size:9px;color:#7d9171;text-align:right}.host-vm-total{display:block;margin-bottom:6px}.host-type-counts{display:flex;flex-direction:column;gap:2px;line-height:1.35;font-variant-numeric:tabular-nums}.host-summary .host-resources,.host-summary .dedication-label{margin-right:76px}.host-summary .esx-host-heading{padding-right:0}
+
+.nplus-one-note{font-size:9px;color:#66835a;margin:10px 0 14px}
+
+.configuration-drawer{position:relative;min-width:0}
+.configuration-toggle{position:absolute;right:-13px;top:18px;z-index:2;width:28px;min-height:32px;padding:2px;border:1px solid #cad9c4;border-radius:7px;background:#fff;color:#285744;box-shadow:0 2px 5px #183b3310;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px}
+.configuration-toggle-arrow{font-size:25px;line-height:1}
+.configuration-toggle-label{display:none}
+.configuration-toggle:hover{background:#eaf0e7}
+.configuration-toggle:focus-visible{outline:3px solid #87bca5;outline-offset:3px}
+.workspace.configuration-collapsed{grid-template-columns:36px minmax(0,1fr)}
+.configuration-collapsed .configuration-toggle{position:sticky;top:16px;width:36px;min-height:152px;flex-direction:column;padding:10px 4px}
+.configuration-collapsed .configuration-toggle-label{display:block;writing-mode:vertical-rl;font-size:11px;font-weight:600;letter-spacing:.3px}
+.configuration[hidden]{display:none}
+.canvas{min-width:0}
+
+.host-expanded{container-type:inline-size}
+.numa-container-view{padding:4px 0}
+.numa-placement-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;align-items:stretch}
+.numa-node-container{min-width:0;border:1px solid #c5d8ba;border-radius:7px;background:#f6faef;overflow:hidden}
+.numa-node-head{padding:10px 8px;border-bottom:1px solid #dce6d4}
+.numa-node-head h4{margin:0 0 5px;color:#496b40;font-size:12px}
+.numa-node-head p{font-size:9px;color:#718265;margin:0 0 12px;line-height:1.5}
+.numa-resource{margin:10px 0 0;font-size:10px;color:#506e49}
+.numa-resource-label{display:flex;flex-direction:column;gap:4px;line-height:1.5}
+.numa-resource-label strong{font-size:10px}
+.numa-track{height:6px;background:#e3eadc;border-radius:3px;overflow:hidden;margin:5px 0 3px}
+.numa-track span{display:block;height:100%;background:#7f9f71}
+.numa-track span.over{background:#b8753a}
+.numa-percent{font-size:9px;color:#76866c}
+.numa-local-vms{padding:8px 5px;min-height:75px}
+.numa-local-vms .vm-card{display:block;padding:9px 21px 9px 7px;margin-bottom:8px;overflow-wrap:anywhere}
+.numa-local-vms .grip{display:none}
+.numa-local-vms .move-select{position:absolute;top:9px;right:2px;width:18px}
+.numa-local-vms .vm-name{font-size:11px}
+.numa-local-vms .vm-spec{font-size:9px;line-height:1.6}
+.numa-local-vms .vm-placement{line-height:1.5}
+.numa-spanning{grid-column:1/-1;min-width:0;border:1px solid #adc7e2;background:#edf4fc;padding:9px;border-radius:7px}
+.numa-spanning.memory-spanning{border-color:#e1bc87;background:#fff5e5}
+.numa-span-heading{font-size:10px;font-weight:600;color:#416d9b;margin-bottom:8px}
+.memory-spanning .numa-span-heading{color:#96571c}
+.numa-span-allocations{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px;margin-top:9px}
+.numa-span-allocations>div{display:flex;flex-direction:column;gap:5px;font-size:10px;color:#55718a;line-height:1.5;padding:3px 8px;border-left:1px dashed #adc7e2}
+.memory-spanning .numa-span-allocations>div{color:#8c6736;border-color:#e1bc87}
+.numa-planning-note{font-size:9px;color:#87967e;line-height:1.6;margin:10px 2px 3px}
+@container(max-width:260px){.numa-placement-grid{grid-template-columns:1fr}.numa-local-vms .vm-card{padding-right:25px}.numa-resource-label{flex-direction:row;justify-content:space-between;flex-wrap:wrap}}
+
+.scenario-files{min-width:0;width:auto;max-width:none}.scenario-files .file-actions{margin-top:0}
+.region-selector{flex:1;min-width:0}.region-selector .region-icon{flex-shrink:0}.region-selector label{flex:1;min-width:0}
+.region-selector #scenario-title{display:block;width:100%;min-width:0;background:transparent;border:0;border-bottom:1px solid #b7c9b3;padding:6px 4px;margin-top:3px;font-size:19px;font-family:'Manrope',sans-serif;font-weight:700;color:#284f39;letter-spacing:-.4px}
+.region-context{flex-shrink:0}
+@media(max-width:560px){.region-bar{align-items:stretch}.region-selector{flex-basis:100%}.region-selector #scenario-title{font-size:16px}.scenario-files{width:100%}.region-context{flex-shrink:1}}
+</style></head>
+<body>
+<header class="topbar"><a class="brand" href="#" aria-label="K8s CAPPlanner home"><span class="brand-icon">▦</span> K8s CAP<span>Planner</span></a><div class="nav-label">Infrastructure workspace <span>/</span> <strong>Placement simulator</strong></div><span class="local-pill"><i></i> Local simulation</span></header>
+<main>
+  <div class="page-heading"><div><div class="eyebrow">CAPACITY & PLACEMENT</div><h1>Kubernetes placement and capacity on ESX</h1><p>Model your region’s ESX capacity and Kubernetes cluster placement.</p></div><div class="scenario-files"><div class="file-actions"><button id="import-button" class="button secondary">↥ Import scenario</button><button id="export-button" class="button secondary">↧ Export scenario</button><input type="file" id="import-file" accept=".json,application/json" hidden></div></div></div>
+  <div class="region-bar"><div class="region-selector"><span class="region-icon">▦</span><label for="scenario-title">REGION TITLE<input id="scenario-title" type="text" maxlength="120" placeholder="Untitled scenario"></label></div><div class="region-context"><strong id="region-clusters"></strong><span>One region spanning AZ1, AZ2 & AZ3</span></div></div>
+  <div class="workspace">
+    <div class="configuration-drawer"><button id="configuration-toggle" class="configuration-toggle" type="button" aria-controls="configuration-panel" aria-expanded="true" aria-label="Collapse Configuration panel" title="Collapse Configuration panel"><span class="configuration-toggle-arrow" aria-hidden="true">‹</span><span class="configuration-toggle-label" aria-hidden="true">Configuration</span></button><aside class="configuration" id="configuration-panel">
+      <form id="config-form">
+        <div class="panel-heading"><h2>Configuration</h2><span class="small-label">01</span></div>
+        <section><div class="section-heading"><span class="section-icon">▤</span><h3>ESX hosts</h3></div><p class="help">One shared specification for every host.</p><div class="two-fields"><label>Sockets<input name="host.sockets" type="number" min="1" max="1000000" step="1" required></label><label>Cores/socket<input name="host.coresPerSocket" aria-label="Physical cores per socket" type="number" min="1" max="1000000" step="1" required></label></div><div class="two-fields topology-fields"><label>Hyperthreading<select name="host.hyperthreading" aria-label="Hyperthreading"><option value="active">Active</option><option value="inactive">Inactive</option></select></label><label for="host-logical-cores">Logical cores <span>Calculated</span><output id="host-logical-cores" name="host.cpu" aria-live="polite"></output></label></div><p id="host-cpu-formula" class="help topology-help">Sockets × physical cores/socket × threads/core</p><label>Memory <span>GB</span><input name="host.memory" type="number" min="0.01" max="1000000" step="any" required></label><p class="help footer-help">Cores/socket is the physical core count. Hyperthreading provides 2 threads per core when active, 1 when inactive.</p><label class="numa-config">NUMA nodes per ESX host<input name="host.numaNodes" aria-label="NUMA nodes per ESX host" type="number" min="1" max="64" step="1" required></label><p id="numa-topology-help" class="help topology-help">CPU cores and memory are assumed evenly divided between NUMA nodes.</p><div class="field-title">ESX HOSTS PER CLUSTER</div><div id="host-counts" class="host-counts"></div></section>
+        <section class="k8s-config"><div class="section-heading"><span class="section-icon">◇</span><h3>Kubernetes clusters</h3><span id="draft-count" class="cluster-count"></span></div><p class="help">Independent sizes for up to two clusters. CPU is in logical cores.</p><div id="cluster-editors"></div><p class="help footer-help">Sizes apply to every node of that type within its cluster.</p><div class="cluster-editor-actions"><button id="add-cluster" type="button" class="button secondary">+ Add cluster</button><span class="help">Maximum 2 clusters</span></div><p class="help footer-help">Cluster changes take effect with Apply configuration.</p></section>
+        <div class="config-footer"><p id="config-error" class="error" role="alert" hidden></p><button type="submit" class="button primary full">Apply configuration <span>→</span></button><span id="config-status">Changes apply when you press the button.</span></div>
+      </form>
+      <div class="model-note"><span>ⓘ</span><p>Cluster-level simulation<br><small>Each AZ contains named ESX hosts. Affinity rules automatically place VMs; no ESX host pinning. One host per AZ is reserved from aggregate CPU and memory for N+1 maintenance; all hosts remain visible for placement. ESXi overhead is not deducted. Host logical cores are calculated from socket topology; VM CPU counts correspond to vCPUs.</small></p></div>
+    </aside></div>
+    <div class="canvas">
+      <div class="summary" id="summary"></div>
+      <section class="placement">
+        <div class="placement-heading"><div><h2>Region placement board</h2><p>Move VMs between AZs. Host placement is automatic; switch affinity rules on or off below.</p></div><div class="board-actions"><button id="undo" class="button secondary" disabled>↶ Undo</button><button id="balance-workers" class="button secondary">Rebalance hosts</button><button id="balance" class="button primary">⇄ Distribute evenly</button></div></div>
+        <div class="affinity-policy" id="affinity-policy"><label class="affinity-toggle"><input id="affinity-toggle" type="checkbox" role="switch" aria-label="Placement (affinity) rules" aria-describedby="affinity-toggle-help"><strong>Placement (affinity) rules</strong><span id="affinity-toggle-state">On</span></label><details class="affinity-details"><summary>Rule details</summary><div class="affinity-details-body"><p>When enabled, these limits apply across both Kubernetes clusters within each AZ:</p><ol id="affinity-rule-description"><li><strong>Etcd separation:</strong> At most one etcd VM per ESX host. It may share with other VM types.</li><li><strong>Master/ingress pairing:</strong> Matching node numbers within the same Kubernetes cluster stay together, such as master-01 and ingress-01. Moving either to another AZ moves its partner too.</li><li><strong>Pair separation:</strong> At most one master/ingress pair per ESX host.</li><li><strong>Workers with a pair:</strong> At most one worker on a host containing a master/ingress pair.</li><li><strong>Other workers:</strong> At most two workers on a host without a master/ingress pair.</li></ol><p id="affinity-toggle-help"><strong>Turning off:</strong> Immediately redistributes all VMs across the hosts in their current AZs without pairing, etcd separation, or per-host VM count limits. Previously unplaced VMs can be assigned. VM counts, sizes, and cluster labels are retained. Capacity warnings and NUMA estimates remain active.</p><p><strong>Turning on:</strong> Recalculates placement under all five rules. Ingress VMs follow their matching master’s AZ. VMs that cannot satisfy the rules remain visible as unplaced. This does not restore the previous host arrangement.</p><p>ESX hosts are assigned automatically in both modes; VMs are never pinned to a host.</p></div></details></div><div id="affinity-warning" class="capacity-warning" role="status" hidden></div><div class="numa-legend" aria-label="NUMA status legend"><span class="numa-badge fit">● Local fit</span><span class="numa-badge risk">▲ Memory / CPU risk</span><span class="numa-badge wide">◆ Wide VM</span><small>Simulated NUMA placement · full configured memory · equal node resources</small></div><div class="board-meta"><div class="legend"><span class="type-etcd">etcd</span><span class="type-master">master</span><span class="type-ingress">ingress</span><span class="type-worker">worker</span></div><span id="spread-label"></span></div>
+        <div class="clusters" id="clusters"></div>
+      </section>
+      <div id="capacity-warning" class="capacity-warning" role="status" hidden></div>
+      <section class="potential-capacity" aria-labelledby="potential-heading"><div class="placement-heading"><div><h2 id="potential-heading">Kubernetes cluster capacity</h2><p>Placed worker capacity minus node reservations and baseline cluster services.</p></div><button id="export-capacity" type="button" class="button secondary">↧ Export capacity CSV</button></div><div id="cluster-capacity-cards" class="cluster-capacity-cards"></div><p class="capacity-assumptions">Client budgets use placed workers only. Measured baseline deductions and editable assumptions are documented inside each card. Expand Configured VM totals for the original all-node resource breakdown.</p></section><footer class="canvas-footer"><span><i></i> <span id="save-status">Scenario saved in this browser</span></span><button id="reset" class="text-button">Reset to example</button></footer>
+    </div>
+  </div>
+</main>
+<div id="toast" role="status" aria-live="polite"></div>
+<script type="module">
+const TYPES = ['etcd', 'master', 'ingress', 'worker'];
+const AZS = ['AZ1', 'AZ2', 'AZ3'];
+const REGION_TYPES = { presentation: 'Presentation tier', mid: 'Mid-tier' };
+function defaultDeductions() { return {nodeCpu:0.5,nodeMemoryGiB:(92677260*1024-85861471162)/2**30,servicesCpu:56.295,servicesMemoryGiB:244.075}; }
+function defaultCluster(id, label) {
+  return { id, label, deductions:defaultDeductions(), profiles: {
+    etcd: { count: 5, cpu: 4, memory: 16 }, master: { count: 3, cpu: 6, memory: 32 },
+    ingress: { count: 3, cpu: 6, memory: 16 }, worker: { count: 186, cpu: 12, memory: 120 }
+  } };
+}
+function defaults() {
+  return { schemaVersion: 6, title: 'Untitled scenario', affinityEnabled: true, regionType: 'presentation', host: { cpu: 64, memory: 512, sockets: 2, coresPerSocket: 16, numaNodes: 2, hyperthreading: true }, hosts: [3, 3, 3],
+    clusters: [defaultCluster('k8s-1', 'Kubernetes cluster 1'), defaultCluster('k8s-2', 'Kubernetes cluster 2')], vms: [] };
+}
+function positive(n, integer = false) { return Number.isFinite(n) && n > 0 && n <= 1000000 && (!integer || Number.isInteger(n)); }
+function logicalCores(host) { return host.sockets * host.coresPerSocket * (host.hyperthreading ? 2 : 1); }
+function scenarioFilename(title) {
+  const name=title.normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+  return `${name||'scenario'}.json`;
+}
+function validateConfig(s) {
+  if (typeof s?.title !== 'string' || !s.title.trim() || s.title.length>120) throw Error('Give the scenario a title of 1–120 characters.');
+  if (typeof s?.affinityEnabled !== 'boolean') throw Error('Placement rules must be on or off.');
+  if (!s || !positive(s.host?.cpu, true) || !positive(s.host?.memory)) throw Error('Enter positive host logical CPU cores and memory (up to 1,000,000).');
+  if (!positive(s.host.sockets,true) || !positive(s.host.coresPerSocket,true) || typeof s.host.hyperthreading!=='boolean') throw Error('Enter positive whole-number sockets and physical cores per socket, and select hyperthreading Active or Inactive.');
+  if (!Number.isInteger(s.host.numaNodes) || s.host.numaNodes<1 || s.host.numaNodes>64 || (s.host.sockets*s.host.coresPerSocket)%s.host.numaNodes!==0) throw Error('NUMA nodes per host must be 1–64 and divide the host physical core count evenly.');
+  if (s.host.cpu !== logicalCores(s.host)) throw Error('Logical cores must equal sockets × physical cores per socket × threads per core (2 when hyperthreading is active, otherwise 1).');
+  if (!Array.isArray(s.hosts) || s.hosts.length !== 3 || !s.hosts.every(n => positive(n, true) && n <= 10000)) throw Error('Each AZ needs 1–10,000 hosts.');
+  if (!Object.hasOwn(REGION_TYPES, s.regionType)) throw Error('Choose Presentation tier or Mid-tier for the region.');
+  if (!Array.isArray(s.clusters) || !s.clusters.length || s.clusters.length > 2) throw Error('Define one or two Kubernetes clusters.');
+  let total = 0;
+  const ids = new Set();
+  for (const cluster of s.clusters) {
+    if (!cluster || typeof cluster.id !== 'string' || !/^k8s-[a-zA-Z0-9-]{1,64}$/.test(cluster.id) || ids.has(cluster.id)) throw Error('Kubernetes clusters need unique valid IDs.');
+    ids.add(cluster.id);
+    const deductions=cluster.deductions??defaultDeductions();
+    if (!['nodeCpu','nodeMemoryGiB','servicesCpu','servicesMemoryGiB'].every(k=>Number.isFinite(deductions[k])&&deductions[k]>=0&&deductions[k]<=1000000)) throw Error('Capacity deductions must be numbers between 0 and 1,000,000.');
+    if (typeof cluster.label !== 'string' || !cluster.label.trim() || cluster.label.length > 80) throw Error('Give each Kubernetes cluster a label of 1–80 characters.');
+    for (const type of TYPES) {
+      const p = cluster.profiles?.[type];
+      if (!p || !Number.isInteger(p.count) || p.count < 0 || !positive(p.cpu) || !positive(p.memory)) throw Error('VM counts must be whole numbers at or above zero; CPU and memory must be positive.');
+      total += p.count;
+    }
+  }
+  if (total < 1 || total > 3000) throw Error('Define between 1 and 3,000 VMs across the region.');
+  return true;
+}
+function reconcile(config, previous = [], {balanceWorkers=true}={}) {
+  validateConfig(config);
+  const old = new Map(previous.map(v => [v.id, v]));
+  const vms = [];
+  for (const cluster of config.clusters) for (const type of TYPES) for (let i = 1; i <= cluster.profiles[type].count; i++) {
+    const name = `${type}-${String(i).padStart(2, '0')}`;
+    const id = `${cluster.id}:${name}`;
+    const prior = old.get(id);
+    const az = prior?.az ?? ((i - 1) % 3);
+    vms.push({ id, clusterId: cluster.id, name, type, az, host: prior?.host ?? null });
+  }
+  return assignHosts({ ...config, schemaVersion: 6, vms }, {balanceWorkers});
+}
+function profileFor(state, vm) { return state.clusters.find(c => c.id === vm.clusterId).profiles[vm.type]; }
+function usage(state, az) {
+  const vms = state.vms.filter(v => v.az === az);
+  const cpu = vms.reduce((n, v) => n + profileFor(state, v).cpu, 0);
+  const memory = vms.reduce((n, v) => n + profileFor(state, v).memory, 0);
+  const availableHosts = Math.max(0, state.hosts[az] - 1);
+  const capacity = { cpu: state.host.cpu * availableHosts, memory: state.host.memory * availableHosts };
+  return { vms, cpu, memory, capacity, over: cpu > capacity.cpu || memory > capacity.memory };
+}
+function hostName(az, index) { return `az${az+1}${String(index+1).padStart(2,'0')}`; }
+function hostUsage(state, az, host) {
+  const vms = state.vms.filter(v=>v.az===az && v.host===host);
+  const cpu=vms.reduce((n,v)=>n+profileFor(state,v).cpu,0);
+  const memory=vms.reduce((n,v)=>n+profileFor(state,v).memory,0);
+  return {vms,cpu,memory,capacity:{...state.host},over:cpu>state.host.cpu || memory>state.host.memory};
+}
+function pairedVM(state, vm) {
+  if(!['master','ingress'].includes(vm.type))return null;
+  const other=vm.type==='master'?'ingress':'master';
+  return state.vms.find(v=>v.clusterId===vm.clusterId&&v.name===vm.name.replace(vm.type,other))??null;
+}
+function assignHosts(state) {
+  const next=structuredClone(state);delete next.dedications;
+  // Host assignments are calculated each time, never affinity/pinning metadata.
+  next.vms.forEach(v=>{v.host=null;delete v.pinned;});
+  if(!next.affinityEnabled) {
+    for(let az=0;az<3;az++) {
+      const loads=Array.from({length:next.hosts[az]},(_,host)=>({host,cpu:0,memory:0,count:0}));
+      const members=next.vms.filter(v=>v.az===az).sort((a,b)=>profileFor(next,b).cpu-profileFor(next,a).cpu || profileFor(next,b).memory-profileFor(next,a).memory || a.id.localeCompare(b.id));
+      for(const vm of members) {
+        const p=profileFor(next,vm);
+        loads.sort((a,b)=>Number(a.cpu+p.cpu>next.host.cpu||a.memory+p.memory>next.host.memory)-Number(b.cpu+p.cpu>next.host.cpu||b.memory+p.memory>next.host.memory) || a.cpu-b.cpu || a.memory-b.memory || a.count-b.count || a.host-b.host);
+        const l=loads[0];vm.host=l.host;l.cpu+=p.cpu;l.memory+=p.memory;l.count++;
+      }
+    }
+    return next;
+  }
+  for(const vm of next.vms.filter(v=>v.type==='ingress')) {const mate=pairedVM(next,vm);if(mate)vm.az=mate.az;}
+  for(let az=0;az<3;az++) {
+    const loads=Array.from({length:next.hosts[az]},(_,host)=>({host,cpu:0,memory:0,pair:0,etcd:0,worker:0}));
+    const add=(vm,l)=>{const p=profileFor(next,vm);vm.host=l.host;l.cpu+=p.cpu;l.memory+=p.memory;l[vm.type==='etcd'?'etcd':vm.type==='worker'?'worker':'pair']++;};
+    const choose=(pool,vms)=>{
+      const cpu=vms.reduce((n,v)=>n+profileFor(next,v).cpu,0),memory=vms.reduce((n,v)=>n+profileFor(next,v).memory,0);
+      return pool.sort((a,b)=>Number(a.cpu+cpu>next.host.cpu||a.memory+memory>next.host.memory)-Number(b.cpu+cpu>next.host.cpu||b.memory+memory>next.host.memory) || a.cpu-b.cpu || a.memory-b.memory || a.host-b.host)[0];
+    };
+    const members=next.vms.filter(v=>v.az===az);
+    for(const master of members.filter(v=>v.type==='master')) {
+      const mate=pairedVM(next,master);if(!mate)continue;
+      const l=choose(loads.filter(l=>l.pair===0),[master,mate]);
+      if(l){add(master,l);add(mate,l);}
+    }
+    for(const etcd of members.filter(v=>v.type==='etcd')) {
+      const l=choose(loads.filter(l=>l.etcd===0),[etcd]);if(l)add(etcd,l);
+    }
+    // Interleave clusters to avoid giving the first cluster all scarce worker slots.
+    const queues=next.clusters.map(c=>members.filter(v=>v.type==='worker'&&v.clusterId===c.id));
+    for(let i=0;i<Math.max(0,...queues.map(q=>q.length));i++)for(const q of queues) {
+      const vm=q[i];if(!vm)continue;
+      const l=choose(loads.filter(l=>l.worker<(l.pair?1:2)),[vm]);if(l)add(vm,l);
+    }
+  }
+  return next;
+}
+function affinitySummary(state,az) {
+  const members=state.vms.filter(v=>v.az===az),pairs=members.filter(v=>v.type==='master'&&pairedVM(state,v)).length;
+  const workers=members.filter(v=>v.type==='worker').length,etcd=members.filter(v=>v.type==='etcd').length;
+  const unpaired=state.affinityEnabled?members.filter(v=>['master','ingress'].includes(v.type)&&!pairedVM(state,v)):[];
+  const unplaced=members.filter(v=>v.host===null);
+  const minimumHosts=state.affinityEnabled?Math.max(etcd,pairs,Math.ceil((workers+pairs)/2)):1;
+  return {unplaced,unpaired,pairs,workers,minimumHosts,workerSlots:2*state.hosts[az]-Math.min(pairs,state.hosts[az])};
+}
+function distribute(state) {
+  const next=structuredClone(state);
+  const totals=[0,0,0],cpus=[0,0,0],memories=[0,0,0];
+  const groups=state.clusters.flatMap(cluster=>TYPES.map(type=>({cluster,type,profile:cluster.profiles[type]})));
+  groups.sort((a,b)=>b.profile.cpu-a.profile.cpu || b.profile.memory-a.profile.memory);
+  for(const {cluster,type,profile} of groups) {
+    const counts=[0,0,0];
+    for(const vm of next.vms.filter(v=>v.clusterId===cluster.id&&v.type===type)) {
+      const az=[0,1,2].sort((a,b)=>counts[a]-counts[b] || totals[a]-totals[b] || cpus[a]-cpus[b] || memories[a]-memories[b] || a-b)[0];
+      if(vm.az!==az)vm.host=null;
+      vm.az=az;counts[az]++;totals[az]++;cpus[az]+=profile.cpu;memories[az]+=profile.memory;
+    }
+  }
+  return assignHosts(next,{balanceWorkers:true});
+}
+function validateState(s) {
+  validateConfig(s);
+  if (s.schemaVersion !== 6 || !Array.isArray(s.vms)) throw Error('Scenario version or VM placements are invalid.');
+  const expected = reconcile(s).vms;
+  const ids = new Set();
+  if (s.vms.length !== expected.length) throw Error('VM placements do not match the configured counts.');
+  const lookup = new Map(expected.map(v => [v.id, v]));
+  for (const v of s.vms) {
+    const match = lookup.get(v?.id);
+    if (!match || match.type !== v.type || match.clusterId !== v.clusterId || match.name !== v.name || ids.has(v.id) || ![0,1,2].includes(v.az) || (v.host!==null && (!Number.isInteger(v.host) || v.host<0 || v.host>=s.hosts[v.az]))) throw Error('Scenario contains invalid or duplicate VM placements.');
+    ids.add(v.id);
+  }
+  if(!s.affinityEnabled)return true;
+  for(const vm of s.vms) {
+    const mate=pairedVM(s,vm);
+    if(mate&&(mate.az!==vm.az||mate.host!==vm.host))throw Error('Master/ingress pairs must share an AZ and ESX host.');
+    if(['master','ingress'].includes(vm.type)&&!mate&&vm.host!==null)throw Error('Unpaired master/ingress VMs must remain unplaced.');
+  }
+  for(let az=0;az<3;az++)for(const host of new Set(s.vms.filter(v=>v.az===az&&v.host!==null).map(v=>v.host))) {
+    const vms=s.vms.filter(v=>v.az===az&&v.host===host),n=t=>vms.filter(v=>v.type===t).length;
+    if(n('etcd')>1||n('master')>1||n('ingress')>1||n('worker')>(n('master')||n('ingress')?1:2))throw Error('Scenario violates host affinity occupancy limits.');
+  }
+  return true;
+}
+function normalizeState(source) {
+  let s=structuredClone(source);
+  if(s&&!Object.hasOwn(s,'title'))s.title='Untitled scenario';
+  if(typeof s?.title==='string')s.title=s.title.trim();
+  if(s&&!Object.hasOwn(s,'affinityEnabled'))s.affinityEnabled=true;
+  if(Array.isArray(s?.clusters))s.clusters=s.clusters.map(c=>c?{...c,deductions:c.deductions??defaultDeductions()}:c);
+  if(s?.host) s.host={...s.host,sockets:Object.hasOwn(s.host,'sockets')?s.host.sockets:2,hyperthreading:Object.hasOwn(s.host,'hyperthreading')?s.host.hyperthreading:true,numaNodes:Object.hasOwn(s.host,'numaNodes')?s.host.numaNodes:2};
+  if(s?.profiles&&!s.clusters&&Array.isArray(s.vms)) {
+    s={...s,schemaVersion:2,regionType:'presentation',clusters:[{id:'k8s-1',label:'Kubernetes cluster 1',profiles:s.profiles}],vms:s.vms.map(v=>({...v,name:v.id,id:`k8s-1:${v.id}`,clusterId:'k8s-1'}))};
+  }
+  // Keep saved scenarios and older exports compatible with the role rename.
+  if(Array.isArray(s?.clusters))for(const cluster of s.clusters) {
+    if(cluster?.profiles&&Object.hasOwn(cluster.profiles,'public')) {
+      if(Object.hasOwn(cluster.profiles,'ingress'))throw Error('Scenario contains both public and ingress profiles; keep only one role profile.');
+      cluster.profiles.ingress=cluster.profiles.public;
+      delete cluster.profiles.public;
+    }
+  }
+  if(Array.isArray(s?.vms))s.vms=s.vms.map(v=>v?.type==='public'?{...v,type:'ingress',name:typeof v.name==='string'?v.name.replace(/^public-/,'ingress-'):v.name,id:typeof v.id==='string'?v.id.replace(/(^|:)public-/,'$1ingress-'):v.id}:v);
+  if([2,3,4,5].includes(s?.schemaVersion)) {
+    if (!Object.hasOwn(s.host,'coresPerSocket')) s.host.coresPerSocket=s.host.cpu/(s.host.sockets*(s.host.hyperthreading?2:1));
+    s={...s,schemaVersion:6,vms:s.vms.map(v=>({id:v.id,clusterId:v.clusterId,name:v.name,type:v.type,az:v.az,host:null}))};
+    validateConfig(s);s=assignHosts(s);
+  }
+  validateState(s);
+  return {schemaVersion:6,title:s.title,affinityEnabled:s.affinityEnabled,regionType:s.regionType,host:{cpu:s.host.cpu,memory:s.host.memory,sockets:s.host.sockets,coresPerSocket:s.host.coresPerSocket,numaNodes:s.host.numaNodes,hyperthreading:s.host.hyperthreading},hosts:[...s.hosts],
+    clusters:s.clusters.map(c=>({id:c.id,label:c.label.trim(),deductions:{...(c.deductions??defaultDeductions())},profiles:Object.fromEntries(TYPES.map(t=>[t,{count:c.profiles[t].count,cpu:c.profiles[t].cpu,memory:c.profiles[t].memory}]))})),
+    vms:s.vms.map(v=>({id:v.id,clusterId:v.clusterId,name:v.name,type:v.type,az:v.az,host:v.host}))};
+}
+
+// Derived planning estimate only: largest-memory-first placement, balanced CPU,
+// equal node resources, full configured RAM, no overhead or ESXi telemetry.
+function numaPlan(state, az, host) {
+  const count=state.host.numaNodes, physical=state.host.sockets*state.host.coresPerSocket/count;
+  const capacity={physical,logical:state.host.cpu/count,memory:state.host.memory/count};
+  const nodes=Array.from({length:count},(_,id)=>({id,cpu:0,memory:0})), placements=new Map();
+  const vms=hostUsage(state,az,host).vms.sort((a,b)=>profileFor(state,b).memory-profileFor(state,a).memory || profileFor(state,b).cpu-profileFor(state,a).cpu || a.id.localeCompare(b.id));
+  for(const vm of vms) {
+    const p=profileFor(state,vm), wide=p.cpu>physical;
+    const fitting=nodes.filter(n=>n.memory+p.memory<=capacity.memory+1e-8);
+    const candidates=fitting.length?fitting:[...nodes];
+    candidates.sort((a,b)=>a.cpu-b.cpu || a.memory-b.memory || a.id-b.id);
+    const home=candidates[0];
+    const memoryByNode=Array(count).fill(0),cpuByNode=Array(count).fill(0);
+    let remaining=p.memory;
+    const local=Math.max(0,Math.min(remaining,capacity.memory-home.memory));
+    home.memory+=local;memoryByNode[home.id]+=local;remaining-=local;
+    const remote=p.memory-local;
+    for(const node of [...nodes].filter(n=>n!==home).sort((a,b)=>a.memory-b.memory || a.id-b.id)) {
+      const amount=Math.max(0,Math.min(remaining,capacity.memory-node.memory));
+      node.memory+=amount;memoryByNode[node.id]+=amount;remaining-=amount;
+    }
+    // Retain overflow visibly instead of pretending RAM fits within host capacity.
+    if(remaining>0){home.memory+=remaining;memoryByNode[home.id]+=remaining;}
+    const cpuNodes=wide?[home,...nodes.filter(n=>n!==home).sort((a,b)=>a.cpu-b.cpu || a.id-b.id)]:[home];
+    let cpu=p.cpu;
+    const allocations=[];
+    for(const node of cpuNodes) {
+      const amount=wide?Math.min(cpu,physical):cpu;
+      if(amount>0){node.cpu+=amount;cpuByNode[node.id]+=amount;allocations.push(node.id);cpu-=amount;}
+    }
+    if(cpu>0){home.cpu+=cpu;cpuByNode[home.id]+=cpu;}
+    placements.set(vm.id,{home:home.id,nodes:allocations,wide,remote,overflow:remaining,cpuByNode,memoryByNode});
+  }
+  for(const placement of placements.values()) placement.contention=placement.nodes.some(id=>nodes[id].cpu>physical+1e-8);
+  const memoryRisk=[...placements.values()].some(p=>p.remote>1e-8||p.overflow>1e-8);
+  const contention=nodes.some(n=>n.cpu>physical+1e-8),wide=[...placements.values()].some(p=>p.wide);
+  return {capacity,nodes,placements,memoryRisk,contention,wide,status:memoryRisk||contention?'risk':wide?'wide':'fit'};
+}
+
+function clusterCapacity(state, clusterId) {
+  const members=state.vms.filter(v=>v.clusterId===clusterId);
+  return {count:members.length,cpu:members.reduce((n,v)=>n+profileFor(state,v).cpu,0),memory:members.reduce((n,v)=>n+profileFor(state,v).memory,0),unplaced:members.filter(v=>v.host===null).length};
+}
+
+function clientCapacity(state, clusterId) {
+  const cluster=state.clusters.find(c=>c.id===clusterId),d=cluster.deductions??defaultDeductions();
+  const workers=state.vms.filter(v=>v.clusterId===clusterId&&v.type==='worker');
+  const placed=workers.filter(v=>v.host!==null).length,profile=cluster.profiles.worker;
+  const grossCpu=placed*profile.cpu,grossMemoryGiB=placed*profile.memory*1e9/2**30;
+  const nodeCpu=placed*d.nodeCpu,nodeMemoryGiB=placed*d.nodeMemoryGiB;
+  const cpu=grossCpu-nodeCpu-d.servicesCpu,memoryGiB=grossMemoryGiB-nodeMemoryGiB-d.servicesMemoryGiB;
+  return {placed,unplaced:workers.length-placed,grossCpu,grossMemoryGiB,nodeCpu,nodeMemoryGiB,
+    allocatableCpu:Math.max(0,grossCpu-nodeCpu),allocatableMemoryGiB:Math.max(0,grossMemoryGiB-nodeMemoryGiB),
+    cpu:Math.max(0,cpu),memoryGiB:Math.max(0,memoryGiB),overdrawn:cpu<0||memoryGiB<0,
+    nodeOverdrawn:d.nodeCpu>profile.cpu||d.nodeMemoryGiB>profile.memory*1e9/2**30};
+}
+
+function capacityCsv(state) {
+  const rows=[['Region title','Kubernetes cluster','Section','Metric / VM type','VM count','Unplaced VM count','CPU (vCPU)','Memory (GB)','Memory (GiB)']];
+  for(const cluster of state.clusters) {
+    const total=clusterCapacity(state,cluster.id),worker=clientCapacity(state,cluster.id),d=cluster.deductions??defaultDeductions();
+    const add=(section,metric,count,unplaced,cpu,gb,gib)=>rows.push([state.title,cluster.label,section,metric,count,unplaced,cpu,gb,gib]);
+    add('Client workload summary','Available for client workloads',worker.placed,worker.unplaced,worker.cpu,'',worker.memoryGiB);
+    add('Client workload calculation','Placed workers, gross',worker.placed,worker.unplaced,worker.grossCpu,'',worker.grossMemoryGiB);
+    add('Client workload calculation','Node reservations (deduct)', '', '',worker.nodeCpu,'',worker.nodeMemoryGiB);
+    add('Client workload calculation','Cluster services (deduct)', '', '',d.servicesCpu,'',d.servicesMemoryGiB);
+    add('Client workload calculation','Client workload budget',worker.placed,worker.unplaced,worker.cpu,'',worker.memoryGiB);
+    for(const type of TYPES) {
+      const p=cluster.profiles[type],unplaced=state.vms.filter(v=>v.clusterId===cluster.id&&v.type===type&&v.host===null).length;
+      add('Configured VM totals',type,p.count,unplaced,p.count*p.cpu,p.count*p.memory,'');
+    }
+    add('Configured VM totals','Total',total.count,total.unplaced,total.cpu,total.memory,'');
+  }
+  const cell=value=>{
+    if(typeof value==='number')return String(Number(value.toFixed(6)));
+    const text=String(value??'');
+    const safe=/^[\s]*[=+\-@]/.test(text)||/^[\t\r\n]/.test(text)?"'"+text:text;
+    return '"'+safe.replaceAll('"','""')+'"';
+  };
+  return '\uFEFF'+rows.map(row=>row.map(cell).join(',')).join('\r\n')+'\r\n';
+}
+
+const $ = id => document.getElementById(id);
+const KEY = 'az-planner-scenario-v2';
+let state = distribute(reconcile(defaults())), previous = null, drag = null, toastTimer;
+let draftClusters = [];
+const expandedHosts=new Set();
+try {const saved=JSON.parse(localStorage.getItem('az-planner-expanded-hosts-v1')||'[]');if(Array.isArray(saved))saved.filter(k=>typeof k==='string').forEach(k=>expandedHosts.add(k));}catch{}
+const fmt = n => Number(n.toFixed(2)).toLocaleString('en-US');
+const esc = text => String(text).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let storageAvailable = true;
+try { const stored = localStorage.getItem(KEY); if (stored) state = normalizeState(JSON.parse(stored)); } catch { storageAvailable = false; }
+function setConfigurationCollapsed(collapsed) {
+  document.querySelector('.workspace').classList.toggle('configuration-collapsed',collapsed);
+  $('configuration-panel').hidden=collapsed;
+  const button=$('configuration-toggle');
+  button.setAttribute('aria-expanded',String(!collapsed));
+  const label=`${collapsed?'Expand':'Collapse'} Configuration panel`;
+  button.setAttribute('aria-label',label);
+  button.title=label;
+  button.querySelector('.configuration-toggle-arrow').textContent=collapsed?'›':'‹';
+}
+try {setConfigurationCollapsed(localStorage.getItem('az-planner-configuration-collapsed')==='true');}catch{}
+$('configuration-toggle').addEventListener('click',()=>{
+  const collapsed=$('configuration-toggle').getAttribute('aria-expanded')==='true';
+  setConfigurationCollapsed(collapsed);
+  try {localStorage.setItem('az-planner-configuration-collapsed',String(collapsed));}catch{}
+});
+function toast(message) { $('toast').textContent = message; $('toast').classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').classList.remove('show'), 3500); }
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(state)); storageAvailable = true; } catch { storageAvailable = false; }
+  $('save-status').textContent = storageAvailable ? 'Scenario saved in this browser' : 'Browser storage unavailable · export to keep this scenario';
+}
+function update(next, message, populate = false) { previous = structuredClone(state); state = next; save(); render(); if (populate) fillForm(); toast(message); }
+function markPending() { $('config-status').textContent = 'You have unapplied changes.'; }
+function fillForm() {
+  const form = $('config-form');
+  for (const key of ['memory', 'sockets', 'coresPerSocket', 'numaNodes']) form.elements[`host.${key}`].value = state.host[key];
+  form.elements['host.hyperthreading'].value=state.host.hyperthreading?'active':'inactive';
+  updateLogicalCores();
+  AZS.forEach((_, i) => form.elements[`hosts.${i}`].value = state.hosts[i]);
+  draftClusters = structuredClone(state.clusters);
+  renderEditor();
+  $('config-status').textContent = 'Changes apply when you press the button.';
+  $('config-error').hidden = true;
+}
+function hostFromForm() {
+  const form=$('config-form');
+  const host={memory:Number(form.elements['host.memory'].value),sockets:Number(form.elements['host.sockets'].value),coresPerSocket:Number(form.elements['host.coresPerSocket'].value),numaNodes:Number(form.elements['host.numaNodes'].value),hyperthreading:form.elements['host.hyperthreading'].value==='active'};
+  return {...host,cpu:logicalCores(host)};
+}
+function updateLogicalCores() {
+  const host=hostFromForm(), threads=host.hyperthreading?2:1;
+  const valid=Number.isInteger(host.sockets)&&host.sockets>0&&Number.isInteger(host.coresPerSocket)&&host.coresPerSocket>0&&host.cpu<=1000000;
+  $('host-logical-cores').value=valid?fmt(host.cpu):'—';
+  $('numa-topology-help').textContent=host.numaNodes>0?`${host.numaNodes} NUMA nodes per host · ${fmt(host.sockets*host.coresPerSocket/host.numaNodes)} physical cores and ${fmt(host.memory/host.numaNodes)} GB per node (even division assumed).`:'Enter the total NUMA node count per ESX host.';
+  $('host-cpu-formula').textContent=valid?`${fmt(host.sockets)} sockets × ${fmt(host.coresPerSocket)} cores/socket × ${threads} threads/core = ${fmt(host.cpu)} logical cores`:'Enter positive whole-number sockets and cores/socket (maximum 1,000,000 logical cores).';
+}
+function captureEditor() {
+  const form = $('config-form');
+  for (const cluster of draftClusters) {
+    cluster.label = form.elements[`${cluster.id}.label`].value;
+    TYPES.forEach(type=>['count','cpu','memory'].forEach(key=>cluster.profiles[type][key]=Number(form.elements[`${cluster.id}.${type}.${key}`].value)));
+  }
+}
+function renderEditor() {
+  $('cluster-editors').innerHTML = draftClusters.map((cluster,index)=>`<fieldset class="cluster-editor"><legend>Cluster ${index+1}</legend><div class="editor-heading"><span class="editor-number">KUBERNETES CLUSTER ${String(index+1).padStart(2,'0')}</span><button type="button" class="text-button" data-remove="${esc(cluster.id)}" ${draftClusters.length===1?'disabled':''} aria-label="Remove cluster ${index+1}">Remove</button></div><label class="cluster-label-field">Cluster label<input name="${cluster.id}.label" type="text" value="${esc(cluster.label)}" maxlength="80" required aria-label="Cluster ${index+1} label"></label><div class="profile-head"><span>Node type</span><span>Count</span><span>Logical cores</span><span>GB</span></div>${TYPES.map(type=>`<div class="profile-row"><span class="type-label type-${type}"><span class="type-dot"></span>${type}</span>${['count','cpu','memory'].map(key=>`<input name="${cluster.id}.${type}.${key}" type="number" value="${cluster.profiles[type][key]}" min="${key==='count'?0:.01}" max="${key==='count'?3000:1000000}" step="${key==='count'?1:'any'}" required aria-label="Cluster ${index+1} ${type} ${key==='memory'?'memory GB':key==='cpu'?'logical cores':key}">`).join('')}</div>`).join('')}</fieldset>`).join('');
+  $('draft-count').textContent = draftClusters.length;
+  $('add-cluster').disabled = draftClusters.length>=2;
+}
+$('host-counts').innerHTML = AZS.map((az, i) => `<label><span>◦</span>${az}<input type="number" name="hosts.${i}" min="1" max="10000" step="1" required aria-label="${az} host count"></label>`).join('');
+function resource(name, used, capacity) {
+  const percent = capacity > 0 ? used / capacity * 100 : 0, exceeded = used > capacity;
+  return `<div class="resource ${name==='Memory'?'memory':''} ${exceeded?'exceeded':''}"><div class="resource-label"><span>${name}</span><strong>${fmt(used)} <small>/ ${fmt(capacity)} ${name==='Memory'?'GB':'logical cores'}</small></strong></div><div class="track" role="meter" aria-label="${name} capacity allocated" aria-valuemin="0" aria-valuemax="${capacity}" aria-valuenow="${Math.min(used,capacity)}" aria-valuetext="${fmt(percent)}% allocated"><div class="fill" style="width:${Math.min(percent,100)}%"></div></div><div class="resource-foot">${exceeded?`${fmt(used-capacity)} ${name==='Memory'?'GB':'logical cores'} over capacity`:`${fmt(percent)}% allocated · ${fmt(capacity-used)} ${name==='Memory'?'GB':'logical cores'} available`}</div></div>`;
+}
+function numaBadges(placement) {
+  const badges=[];
+  if(placement.remote>1e-8)badges.push(`<span class="numa-badge risk" title="Estimated ${fmt(placement.remote)} GB cannot fit on the proposed home node">▲ Memory spans nodes</span>`);
+  if(placement.overflow>1e-8)badges.push('<span class="numa-badge risk">▲ Memory over capacity</span>');
+  if(placement.contention)badges.push('<span class="numa-badge risk" title="Allocated vCPUs exceed physical cores on a proposed node; this is a contention risk, not measured CPU usage">▲ CPU contention risk</span>');
+  if(placement.wide)badges.push('<span class="numa-badge wide">◆ Wide VM</span>');
+  if(!badges.length)badges.push('<span class="numa-badge fit">● Fits locally</span>');
+  return `<div class="vm-numa"><span>Suggested NUMA ${placement.nodes.join(' + ')} · memory home ${placement.home}</span>${badges.join('')}</div>`;
+}
+function vmCard(v, cluster, az, placement) {
+  const p=cluster.profiles[v.type],mate=state.affinityEnabled?pairedVM(state,v):null;
+  const hostControl=`<span class="worker-placement">${mate?`Paired with ${mate.name} · `:''}Automatic host placement</span>`;
+  return `<div class="vm-card type-${v.type}" draggable="true" data-id="${esc(v.id)}" aria-label="${esc(cluster.label)} ${v.name}, ${p.cpu} logical cores, ${p.memory} GB, on ${v.host===null?'unplaced':hostName(az,v.host)}"><span class="grip" aria-hidden="true">⠿</span><div><span class="vm-name">${v.name}</span><span class="vm-cluster-label" title="${esc(cluster.label)}">${esc(cluster.label)}</span><span class="vm-spec">${fmt(p.cpu)} logical cores · ${fmt(p.memory)} GB</span>${placement?numaBadges(placement):'<span class="numa-badge risk">▲ Unplaced — affinity rules</span>'}<div class="vm-placement">${hostControl}</div></div><select class="move-select" data-id="${esc(v.id)}" aria-label="Move ${v.name} (${esc(cluster.label)}) to zone">${AZS.map((name,i)=>`<option value="${i}" ${az===i?'selected':''}>${name}</option>`).join('')}</select></div>`;
+}
+function hostCard(az,host){
+  const plan=numaPlan(state,az,host);
+  const u=hostUsage(state,az,host);
+  const pair=state.affinityEnabled?u.vms.find(v=>v.type==='master'):null;
+  const label=pair?state.clusters.find(c=>c.id===pair.clusterId).label:null;
+  const status=plan.status==='risk'?'▲ NUMA risk':plan.status==='wide'?'◆ Wide VM':'● NUMA local fit';
+  const ordered=[...u.vms].sort((a,b)=>TYPES.indexOf(a.type)-TYPES.indexOf(b.type)||a.name.localeCompare(b.name,undefined,{numeric:true})||a.clusterId.localeCompare(b.clusterId));
+  const involved=v=>{const p=plan.placements.get(v.id);return plan.nodes.filter(n=>p.cpuByNode[n.id]>0||p.memoryByNode[n.id]>0).map(n=>n.id);};
+  const card=v=>vmCard(v,state.clusters.find(c=>c.id===v.clusterId),az,plan.placements.get(v.id));
+  const meter=(name,value,capacity,unit,node)=>{const percent=value/capacity*100;return `<div class="numa-resource"><div class="numa-resource-label"><strong>${name}</strong><span>${name==='CPU'?`${fmt(value)} vCPU / ${fmt(capacity)} logical CPUs`:`${fmt(value)} / ${fmt(capacity)} GB`}</span></div><div class="numa-track" role="meter" aria-label="NUMA ${node} ${name} allocated" aria-valuemin="0" aria-valuemax="${capacity}" aria-valuenow="${Math.min(value,capacity)}" aria-valuetext="${fmt(value)} of ${fmt(capacity)} ${unit}, ${fmt(percent)}% allocated"><span style="width:${Math.min(100,percent)}%" class="${value>capacity?'over':''}"></span></div><span class="numa-percent">${fmt(percent)}% allocated</span></div>`;};
+  const spanning=ordered.filter(v=>involved(v).length>1);
+  const nodeCards=`<div class="numa-container-view"><div class="numa-estimate-heading">Suggested NUMA placement</div><div class="numa-placement-grid">${plan.nodes.map(n=>{const local=ordered.filter(v=>involved(v).length===1&&involved(v)[0]===n.id);return `<section class="numa-node-container" aria-label="NUMA ${n.id} placement"><div class="numa-node-head"><h4>NUMA ${n.id}</h4><p>${fmt(plan.capacity.physical)} physical cores · ${fmt(plan.capacity.logical)} logical CPUs</p>${meter('CPU',n.cpu,plan.capacity.logical,'vCPU',n.id)}${meter('Memory',n.memory,plan.capacity.memory,'GB',n.id)}</div><div class="numa-local-vms">${local.map(card).join('')||'<div class="empty-host">No VMs contained entirely in this node</div>'}</div></section>`;}).join('')}${spanning.map(v=>{const p=plan.placements.get(v.id),ids=involved(v);return `<section class="numa-spanning ${p.remote>0?'memory-spanning':'cpu-spanning'}" aria-label="${esc(v.name)} spans NUMA ${ids.join(' and ')}"><div class="numa-span-heading">${p.nodes.length>1?'CPU spans nodes':''}${p.nodes.length>1&&p.remote>0?' · ':''}${p.remote>0?'Memory spans nodes':''}</div>${card(v)}<div class="numa-span-allocations">${ids.map(id=>`<div><strong>NUMA ${id}</strong><span>CPU: ${fmt(p.cpuByNode[id])} vCPU</span><span>Memory: ${fmt(p.memoryByNode[id])} GB${p.overflow>0&&p.home===id?' (includes overflow)':''}</span></div>`).join('')}</div></section>`;}).join('')}</div><p class="numa-planning-note">Planning estimate, not live ESXi placement. Bars show configured allocation, not measured utilization. CPU bars use logical CPU capacity; physical-core contention warnings remain separate. Node totals include spanning VMs shown below.</p></div>`;
+  return `<details class="esx-host ${u.over?'host-over':''} " data-host="${host}" data-az="${az}" ${expandedHosts.has(`${az}:${host}`)?'open':''} aria-label="${hostName(az,host)} ESX host"><summary class="host-summary"><div class="host-vm-summary"><span class="host-vm-total">${u.vms.length} VMs</span><div class="host-type-counts">${TYPES.map(type=>`<span>${type}: ${u.vms.filter(v=>v.type===type).length}</span>`).join('')}</div></div><div class="esx-host-heading"><span class="host-name">▤ ${hostName(az,host)}</span></div><div class="host-resources"><span class="${u.cpu>u.capacity.cpu?'host-exceeded':''}">Logical CPU: ${fmt(u.cpu)} / ${fmt(u.capacity.cpu)} cores</span><span class="${u.memory>u.capacity.memory?'host-exceeded':''}">Memory: ${fmt(u.memory)} / ${fmt(u.capacity.memory)} GB</span></div>${label?`<div class="dedication-label">Master/ingress pair · ${esc(label)}</div>`:''}<span class="numa-badge ${plan.status}">${status}</span></summary><div class="host-expanded">${nodeCards}</div></details>`;
+}
+function unplacedCard(az) {
+  const a=affinitySummary(state,az);
+  if(!a.unplaced.length)return '';
+  return `<details class="unplaced-vms"><summary>▲ ${a.unplaced.length} unplaced VMs</summary><p>${a.minimumHosts>state.hosts[az]?`At least ${a.minimumHosts} hosts needed for these VM counts; ${state.hosts[az]} configured. `:''}${a.unpaired.length?`${a.unpaired.length} master/ingress VMs lack a matching partner. `:''}Change counts, add hosts, or move VMs to another AZ.</p>${a.unplaced.map(v=>vmCard(v,state.clusters.find(c=>c.id===v.clusterId),az,null)).join('')}</details>`;
+}
+function renderClusterCapacity() {
+  const open=new Set([...document.querySelectorAll('.capacity-card details[open]')].map(el=>el.dataset.key));
+  $('cluster-capacity-cards').innerHTML=state.clusters.map(cluster=>{
+    const c=clusterCapacity(state,cluster.id),w=clientCapacity(state,cluster.id),d=cluster.deductions??defaultDeductions();
+    const fields=[['nodeCpu','Node reserve / worker','vCPU'],['nodeMemoryGiB','Node reserve / worker','GiB'],['servicesCpu','Services / cluster','CPU'],['servicesMemoryGiB','Services / cluster','GiB']];
+    return `<article class="capacity-card" aria-label="${esc(cluster.label)} capacity"><h3>${esc(cluster.label)}</h3><p class="capacity-small">Available for client workloads · baseline budget</p><div class="capacity-kpis client-budget"><div><strong>${fmt(w.cpu)}</strong><span>vCPUs for client workloads</span></div><div><strong>${fmt(w.memoryGiB)} GiB</strong><span>memory for client workloads</span></div></div><p class="capacity-small">${fmt(w.placed)} placed workers included${w.unplaced?` · ${fmt(w.unplaced)} unplaced workers excluded`:''}</p>${w.overdrawn||w.nodeOverdrawn?'<p class="budget-warning">Deductions exceed available worker resources. Review worker sizing and the baseline; negative budgets are shown as zero.</p>':''}<details class="deduction-details" data-key="${cluster.id}-deductions" ${open.has(`${cluster.id}-deductions`)?'open':''}><summary>Deduction details &amp; assumptions</summary><div class="deduction-body"><table><caption>Client workload budget calculation</caption><thead><tr><th scope="col">Step</th><th scope="col">CPU</th><th scope="col">GiB</th></tr></thead><tbody><tr><th scope="row">Placed workers, gross</th><td>${fmt(w.grossCpu)}</td><td>${fmt(w.grossMemoryGiB)}</td></tr><tr><th scope="row">− Node reservations</th><td>${fmt(w.nodeCpu)}</td><td>${fmt(w.nodeMemoryGiB)}</td></tr><tr><th scope="row">− Cluster services</th><td>${fmt(d.servicesCpu)}</td><td>${fmt(d.servicesMemoryGiB)}</td></tr></tbody><tfoot><tr><th scope="row">Client workload budget</th><td>${fmt(w.cpu)}</td><td>${fmt(w.memoryGiB)}</td></tr></tfoot></table><h4>Editable deductions</h4><p>Edit values, then Apply deductions to save them with this scenario. Values are independent per Kubernetes cluster.</p><div class="deduction-fields">${fields.map(([key,label,unit])=>`<label>${label} <span>${unit}</span><input type="number" min="0" max="1000000" step="any" value="${d[key]}" data-deduction="${key}" data-cluster="${esc(cluster.id)}" aria-label="${esc(cluster.label)} ${label} ${unit}" required></label>`).join('')}</div><button type="button" class="button secondary deduction-save" data-save-deductions="${esc(cluster.id)}">Apply deductions</button><h4>Where the baseline came from</h4><p><strong>Node CPU:</strong> the supplied worker describe showed 12 CPUs of Capacity and 11,500m (11.5 CPUs) Allocatable: 12 − 11.5 = <strong>0.5 vCPU per worker</strong>.</p><p><strong>Node memory:</strong> Capacity was 92,677,260 KiB and Allocatable was 85,861,471,162 bytes. (92,677,260 × 1,024 − 85,861,471,162) ÷ 1,073,741,824 = <strong>8.419196 GiB per worker</strong>. This includes the existing Capacity-to-Allocatable reservation; no extra OS allowance is subtracted.</p><p><strong>Cluster services:</strong> your worker-only namespace usage snapshot covered 1,577 of 1,577 matching pods and totaled <strong>56.295 CPU and 244.075 GiB</strong>. This is a fixed per-cluster baseline, not a per-worker deduction. The same snapshot is initially reused for both clusters; adjust each independently when more measurements are available.</p><p><strong>Formula:</strong> placed worker VM resources − (placed workers × node reserve) − cluster services. Master, ingress, etcd, and unplaced workers do not contribute to client capacity.</p><p><strong>Units:</strong> existing VM inputs are treated as decimal GB. We convert GB × 1,000,000,000 ÷ 1,073,741,824 to GiB before deducting measured memory. CPU uses vCPU units; 1,000m = 1 CPU.</p><p><strong>Meaning:</strong> a planning budget after baseline services, before existing client workload consumption. Usage is a snapshot, not requests, peak demand, or a live guarantee. The measured node reserve is assumed constant for other worker sizes. One ESX host per AZ is reserved in the ESX capacity totals for N+1 maintenance. Worker budgets use placed VM resources without an additional ESX host deduction. No additional growth or Kubernetes pod-request headroom is deducted.</p></div></details><details class="configured-capacity" data-key="${cluster.id}-configured" ${open.has(`${cluster.id}-configured`)?'open':''}><summary>Configured VM totals</summary><p class="capacity-small">${fmt(c.count)} VMs · ${fmt(c.unplaced)} unplaced · ${fmt(c.cpu)} vCPUs · ${fmt(c.memory)} GB</p><table><caption>All configured VM resources, including unplaced VMs</caption><thead><tr><th scope="col">Type</th><th scope="col">VMs</th><th scope="col">vCPUs</th><th scope="col">GB</th></tr></thead><tbody>${TYPES.map(t=>{const p=cluster.profiles[t];return `<tr><th scope="row">${t}</th><td>${fmt(p.count)}</td><td>${fmt(p.count*p.cpu)}</td><td>${fmt(p.count*p.memory)}</td></tr>`;}).join('')}</tbody><tfoot><tr><th scope="row">Total</th><td>${fmt(c.count)}</td><td>${fmt(c.cpu)}</td><td>${fmt(c.memory)}</td></tr></tfoot></table></details></article>`;
+  }).join('');
+}
+$('cluster-capacity-cards').addEventListener('click',e=>{
+  const button=e.target.closest('[data-save-deductions]');if(!button)return;
+  const fields=[...button.closest('.capacity-card').querySelectorAll('[data-deduction]')];
+  if(fields.some(input=>!input.reportValidity()))return;
+  const next=structuredClone(state),cluster=next.clusters.find(c=>c.id===button.dataset.saveDeductions);
+  cluster.deductions=Object.fromEntries(fields.map(input=>[input.dataset.deduction,Number(input.value)]));
+  try {
+    validateConfig(next);
+    const draft=draftClusters.find(c=>c.id===cluster.id);if(draft)draft.deductions=structuredClone(cluster.deductions);
+    update(next,'Capacity deductions saved.');
+  }catch(error){toast(error.message);}
+});
+function render() {
+  const scrolls=[...document.querySelectorAll('.vm-area')].map(el=>el.scrollTop);
+  const stats = AZS.map((_, i) => usage(state, i));
+  const cpuUsed = stats.reduce((n,s)=>n+s.cpu,0), cpuTotal=stats.reduce((n,s)=>n+s.capacity.cpu,0);
+  const memUsed = stats.reduce((n,s)=>n+s.memory,0), memTotal=stats.reduce((n,s)=>n+s.capacity.memory,0);
+  $('scenario-title').value=state.title;
+  $('affinity-toggle').checked=state.affinityEnabled;
+  $('affinity-toggle-state').textContent=state.affinityEnabled?'On':'Off';
+  $('affinity-policy').classList.toggle('rules-off',!state.affinityEnabled);
+  $('region-clusters').textContent = `${state.clusters.length} Kubernetes cluster${state.clusters.length===1?'':'s'}`;
+  $('summary').innerHTML = `<div class="stat"><span class="stat-title">TOTAL VIRTUAL MACHINES</span><span class="stat-icon">◇</span><div class="stat-number">${fmt(state.vms.length)}<small>VMs</small></div><div class="stat-sub">In <strong>${state.clusters.length} Kubernetes clusters</strong> · 3 AZs</div></div><div class="stat"><span class="stat-title">LOGICAL CPU CAPACITY · N+1</span><span class="stat-icon">▤</span><div class="stat-number">${fmt(cpuTotal)}<small>logical cores</small></div><div class="stat-sub"><strong>${fmt(cpuUsed)} requested</strong> · ${fmt(cpuTotal>0?cpuUsed/cpuTotal*100:0)}% requested</div></div><div class="stat"><span class="stat-title">MEMORY CAPACITY · N+1</span><span class="stat-icon">▥</span><div class="stat-number">${fmt(memTotal)}<small>GB</small></div><div class="stat-sub"><strong>${fmt(memUsed)} requested</strong> · ${fmt(memTotal>0?memUsed/memTotal*100:0)}% requested</div></div>`;
+  const counts = stats.map(s=>s.vms.length);
+  const totalBalanced = Math.max(...counts)-Math.min(...counts)<=1;
+  const typesBalanced = state.clusters.every(cluster=>TYPES.every(type => { const c = stats.map(s=>s.vms.filter(v=>v.clusterId===cluster.id && v.type===type).length); return Math.max(...c)-Math.min(...c)<=1; }));
+  $('spread-label').textContent = totalBalanced && typesBalanced ? '◉ Even spread across zones' : totalBalanced ? '◉ Even totals · cluster/type spread varies' : '◌ Custom placement';
+  $('clusters').innerHTML = stats.map((s, az) => `<article class="cluster ${s.over?'over':''}" data-az="${az}" aria-label="${AZS[az]} cluster"><div class="cluster-top"><div class="cluster-title-row"><span class="az-icon">▦</span><h3>${AZS[az]}</h3><span class="health ${s.over||s.vms.some(v=>v.host===null)?'warning':''}">${s.over?'Over capacity':s.vms.some(v=>v.host===null)?'Placement shortage':'Within capacity'}</span></div><div class="host-caption">${fmt(state.hosts[az])} ESX host${state.hosts[az]===1?'':'s'} · ${fmt(state.host.cpu)} logical cores / ${fmt(state.host.memory)} GB each<span class="host-topology">${state.host.sockets} sockets × ${state.host.coresPerSocket} physical cores/socket · Hyperthreading ${state.host.hyperthreading?'active':'inactive'} · ${state.host.numaNodes} NUMA nodes</span></div><div class="nplus-one-note">N+1 capacity · ${Math.max(0,state.hosts[az]-1)} hosts usable · 1 host reserved</div>${resource('Logical CPU',s.cpu,s.capacity.cpu)}${resource('Memory',s.memory,s.capacity.memory)}</div><div class="vm-area"><div class="vm-list-heading"><span>ESX HOSTS & VMs</span><span>${s.vms.filter(v=>v.host!==null).length} placed · ${s.vms.filter(v=>v.host===null).length} unplaced</span></div>${unplacedCard(az)}${Array.from({length:state.hosts[az]},(_,host)=>hostCard(az,host)).join('')}</div><div class="cluster-bottom">${state.affinityEnabled?'Affinity rules on · both Kubernetes clusters':'Affinity rules off · unrestricted distribution'}</div></article>`).join('');
+  document.querySelectorAll('.vm-area').forEach((el,i)=>el.scrollTop=scrolls[i]??0);
+  renderClusterCapacity();
+  $('undo').disabled = !previous;
+  const over = stats.map((s,i)=>s.over?AZS[i]:null).filter(Boolean);
+  const hostOver=AZS.flatMap((_,az)=>Array.from({length:state.hosts[az]},(_,host)=>hostUsage(state,az,host).over?hostName(az,host):null)).filter(Boolean);
+  const affinity=AZS.map((_,az)=>affinitySummary(state,az));
+  $('affinity-warning').hidden=!affinity.some(a=>a.unplaced.length);
+  $('affinity-warning').textContent=affinity.flatMap((a,az)=>a.unplaced.length?[`${AZS[az]}: ${a.unplaced.length} unplaced; ${state.hosts[az]} hosts configured, at least ${a.minimumHosts} needed for current counts${a.unpaired.length?`; ${a.unpaired.length} unmatched master/ingress VMs`:''}.`]:[]).join(' ')+' Limits apply across both Kubernetes clusters. Host counts are a placement minimum, before resource and failover headroom.';
+  $('capacity-warning').hidden = !over.length && !hostOver.length;
+  $('capacity-warning').textContent = `${over.length?`⚠ ${over.join(', ')} exceed N+1 capacity. `:''}${hostOver.length?`${hostOver.length} ESX host${hostOver.length===1?'':'s'} exceed individual capacity. `:''}Add hosts, move VMs between AZs, or adjust node sizes. Over-capacity placements are allowed.`;
+}
+function move(id,az) {
+  const vm=state.vms.find(v=>v.id===id);if(!vm||![0,1,2].includes(az))return;
+  if(vm.az===az){toast('Hosts are assigned automatically. Move to another AZ to change zone placement.');return;}
+  const next=structuredClone(state),target=next.vms.find(v=>v.id===id),mate=state.affinityEnabled?pairedVM(next,target):null;
+  target.az=az;if(mate)mate.az=az;
+  update(assignHosts(next),`${vm.name}${mate?` and ${mate.name}`:''} moved to ${AZS[az]}. Automatic host placement recalculated.`);
+}
+$('scenario-title').addEventListener('input',e=>{state={...state,title:e.target.value.trim()||'Untitled scenario'};save();});
+$('scenario-title').addEventListener('blur',()=>{$('scenario-title').value=state.title;});
+$('affinity-toggle').addEventListener('change',e=>{
+  const enabled=e.target.checked;
+  update(assignHosts({...state,affinityEnabled:enabled}),enabled?'Placement rules enabled. Pairs and per-host limits reapplied.':'Placement rules disabled. VMs redistributed without affinity restrictions.');
+});
+$('config-form').addEventListener('input',()=>{updateLogicalCores();markPending();});
+$('config-form').addEventListener('change',e=>{if(e.target.name==='host.hyperthreading'){updateLogicalCores();markPending();}});
+$('add-cluster').addEventListener('click',()=>{
+  if(draftClusters.length>=2) return;
+  captureEditor();
+  const id=`k8s-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,8)}`;
+  let n=1; while(draftClusters.some(c=>c.label===`Kubernetes cluster ${n}`)) n++;
+  draftClusters.push(defaultCluster(id,`Kubernetes cluster ${n}`)); renderEditor(); markPending();
+});
+$('cluster-editors').addEventListener('click',e=>{
+  const button=e.target.closest('[data-remove]');
+  if(!button || draftClusters.length<=1) return;
+  captureEditor(); draftClusters=draftClusters.filter(c=>c.id!==button.dataset.remove); renderEditor(); markPending();
+});
+$('config-form').addEventListener('submit', event => {
+  event.preventDefault(); captureEditor(); const data = new FormData(event.currentTarget);
+  const config = {schemaVersion:6,title:state.title,affinityEnabled:state.affinityEnabled,regionType:state.regionType,host:hostFromForm(),hosts:AZS.map((_,i)=>Number(data.get(`hosts.${i}`))),clusters:structuredClone(draftClusters)};
+  config.clusters.forEach(c=>c.label=c.label.trim());
+  try { update(reconcile(config,state.vms,{balanceWorkers:true}),'Configuration applied. Automatic host placement recalculated.',true); } catch(e) { $('config-error').textContent=e.message; $('config-error').hidden=false; }
+});
+$('balance').addEventListener('click',()=>{try{update(distribute(state),'VMs distributed across AZs using the selected placement mode.');}catch(e){toast(e.message);}});
+$('balance-workers').addEventListener('click',()=>{try{update(assignHosts(state,{balanceWorkers:true}),'Hosts rebalanced using the selected placement mode.');}catch(e){toast(e.message);}});
+$('undo').addEventListener('click',()=>{ if (!previous) return; state=previous; previous=null; save(); render(); fillForm(); toast('Last change undone.'); });
+$('clusters').addEventListener('toggle',e=>{
+  if(!e.target.matches('details.esx-host')||!e.target.isConnected)return;
+  const key=`${e.target.dataset.az}:${e.target.dataset.host}`;
+  if(e.target.open)expandedHosts.add(key);else expandedHosts.delete(key);
+  try{localStorage.setItem('az-planner-expanded-hosts-v1',JSON.stringify([...expandedHosts]));}catch{}
+},true);
+$('clusters').addEventListener('change',e=>{
+  if(e.target.matches('.move-select'))move(e.target.dataset.id,Number(e.target.value));
+
+});
+// Pointer-based dragging supports mouse, pen and touch, including empty cluster headers.
+$('clusters').addEventListener('dragstart',e=>e.preventDefault());
+$('clusters').addEventListener('pointerdown',e=>{
+  if(e.button!==0 || e.target.closest('select, label')) return;
+  const card=e.target.closest('.vm-card'); if(!card || card.getAttribute('draggable')==='false') return;
+  e.preventDefault(); card.setPointerCapture(e.pointerId);
+  drag={id:card.dataset.id,card,pointer:e.pointerId,x:e.clientX,y:e.clientY,ghost:null};
+});
+window.addEventListener('pointermove',e=>{
+  if(!drag || drag.pointer!==e.pointerId) return;
+  if(!drag.ghost && Math.hypot(e.clientX-drag.x,e.clientY-drag.y)<5) return;
+  if(!drag.ghost){
+    drag.ghost=drag.card.cloneNode(true); drag.ghost.classList.add('drag-ghost');
+    drag.ghost.style.width=`${drag.card.getBoundingClientRect().width}px`;
+    drag.ghost.setAttribute('aria-hidden','true'); drag.ghost.querySelectorAll('select').forEach(el=>el.remove());
+    document.body.append(drag.ghost); drag.card.classList.add('dragging');
+  }
+  drag.ghost.style.left=`${e.clientX+12}px`; drag.ghost.style.top=`${e.clientY+12}px`;
+  document.querySelectorAll('.drag-over').forEach(el=>el.classList.remove('drag-over'));
+  const beneath=document.elementFromPoint(e.clientX,e.clientY);
+  (beneath?.closest('.esx-host') || beneath?.closest('.cluster'))?.classList.add('drag-over');
+});
+function finishDrag(e,cancelled=false){
+  if(!drag || drag.pointer!==e.pointerId) return;
+  const current=drag; drag=null;
+  const beneath=document.elementFromPoint(e.clientX,e.clientY);
+  const target=beneath?.closest('.esx-host') || beneath?.closest('.cluster');
+  current.ghost?.remove(); current.card.classList.remove('dragging');
+  document.querySelectorAll('.drag-over').forEach(el=>el.classList.remove('drag-over'));
+  if(current.card.hasPointerCapture(e.pointerId)) current.card.releasePointerCapture(e.pointerId);
+  if(current.ghost && target && !cancelled) move(current.id,Number(target.dataset.az),target.matches('.esx-host')?Number(target.dataset.host):null);
+}
+window.addEventListener('pointerup',e=>finishDrag(e));
+window.addEventListener('pointercancel',e=>finishDrag(e,true));
+$('export-capacity').addEventListener('click',()=>{
+  const url=URL.createObjectURL(new Blob([capacityCsv(state)],{type:'text/csv;charset=utf-8'}));
+  const link=document.createElement('a');link.href=url;
+  link.download=scenarioFilename(state.title).replace(/\.json$/,'-capacity.csv');
+  link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  toast('Kubernetes cluster capacity exported.');
+});
+$('export-button').addEventListener('click',()=>{ const url=URL.createObjectURL(new Blob([JSON.stringify(state,null,2)],{type:'application/json'})); const a=document.createElement('a'); a.href=url; a.download=scenarioFilename(state.title); a.click(); setTimeout(()=>URL.revokeObjectURL(url),1000); toast('Region scenario exported.'); });
+$('import-button').addEventListener('click',()=>$('import-file').click());
+$('import-file').addEventListener('change',async e=>{ const file=e.target.files[0]; if(!file) return; try { if(file.size>2000000) throw Error('Scenario file must be smaller than 2 MB.'); const imported=normalizeState(JSON.parse(await file.text())); update(imported,'Region scenario imported.',true); } catch(e) { toast(`Import failed: ${e.message}`); } e.target.value=''; });
+$('reset').addEventListener('click',()=>update(distribute(reconcile(defaults())),'Two default Kubernetes clusters restored. Use Undo to recover your scenario.',true));
+fillForm(); render(); save();
+
+</script>
+</body></html>

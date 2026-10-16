@@ -1,0 +1,9 @@
+import assert from 'node:assert/strict';
+import {defaults,reconcile,distribute,clusterCapacity,assignHosts} from '../model.mjs';
+const c=defaults();c.host={...c.host,cpu:96,coresPerSocket:24,memory:768};c.hosts=[35,34,34];c.clusters[0].profiles.master.cpu=8;c.clusters[0].profiles.ingress.cpu=8;c.clusters[0].profiles.worker={count:66,cpu:16,memory:90};c.clusters[1].profiles.worker.count=114;
+const s=distribute(reconcile(c)),before=JSON.stringify(s);
+assert.deepEqual(clusterCapacity(s,'k8s-1'),{count:77,cpu:1124,memory:6164,unplaced:0});
+assert.deepEqual(clusterCapacity(s,'k8s-2'),{count:125,cpu:1424,memory:13904,unplaced:0});assert.equal(JSON.stringify(s),before);
+const small=assignHosts({...s,hosts:[1,1,1]});const a=clusterCapacity(small,'k8s-1');assert.ok(a.unplaced>0);assert.equal(a.cpu,1124);assert.equal(a.memory,6164);
+const updated=structuredClone(c);updated.clusters[0].profiles.worker.count=67;const next=reconcile(updated,s.vms);assert.equal(clusterCapacity(next,'k8s-1').cpu,1140);assert.equal(clusterCapacity(next,'k8s-1').memory,6254);
+console.log('PASS: configured VM count/vCPU/memory totals by cluster; unplaced demand included; updates after node count edits; scenario unchanged by capacity calculation.');

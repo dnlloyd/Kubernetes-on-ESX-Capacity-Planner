@@ -1,0 +1,114 @@
+K8s CAPPlanner — affinity placement and ESX capacity simulator
+
+Open az-planner.html in a modern browser. The app is self-contained.
+A region has AZ1, AZ2, AZ3 and one or two Kubernetes clusters.
+
+HOST CONFIGURATION
+All ESX hosts share sockets, physical cores/socket, hyperthreading, memory,
+and NUMA node count. Logical cores = sockets x cores/socket x threads/core;
+threads/core is 2 with active hyperthreading, otherwise 1.
+NUMA nodes defaults to 2 total per host, with evenly divided resources assumed.
+Configure the number of hosts in each AZ. Each Kubernetes cluster has independent
+labels, node counts, vCPU counts, and memory per VM type.
+
+AFFINITY RULES
+The Placement (affinity) rules switch on the board enables/disables all rules.
+The panel starts compact. Expand Rule details for individual rule definitions
+and explanations of what switching off or back on changes. Details are available
+in both modes.
+It takes effect immediately, is saved in browser storage and JSON exports, and
+can be undone. Older scenarios default to On. When on, rules apply across both
+Kubernetes clusters together. When off, every VM is assigned automatically
+without pairing, etcd separation, or worker/pair count limits. CPU/memory
+capacity warnings and NUMA estimates remain active in either mode.
+Turning rules back on reunites pairs (using the master AZ), reapplies host
+limits, and shows unplaced VMs when there are insufficient eligible slots.
+- No more than one etcd VM per ESX host.
+- Each master pairs with the matching ingress node number in its Kubernetes
+  cluster (master-01/ingress-01, etc.). The pair shares an AZ and ESX host.
+- At most one master/ingress pair per ESX host, with at most one worker.
+- Hosts without master/ingress VMs have at most two workers.
+- Etcd can share a host with any allowed pair or worker combination.
+These are simulator rules; the app does not create real vCenter affinity rules.
+
+AUTOMATIC HOST PLACEMENT
+ESX host assignments are recalculated from rules, never pinned. Host dedication
+and Move to host controls have been removed. Rebalance hosts recalculates
+host assignments within current AZs. Distribute evenly spreads VMs across AZs
+and keeps master/ingress partners together. Apply configuration recalculates hosts.
+Drag VMs or use Move to zone to change AZs; a paired master/ingress moves together when rules are on.
+Dropping onto a host chooses that AZ; it does not select or pin the exact host.
+Workers from both clusters are interleaved when allocating scarce host slots.
+
+UNPLACED VMS
+A VM that cannot satisfy occupancy rules remains visible in its AZ's Unplaced
+VMs section; expand this section to inspect individual cards. Missing master/
+ingress partners also remain unplaced. No VMs are discarded and no occupancy rule
+is silently violated. Warnings show unplaced counts and minimum hosts by AZ.
+With W workers and P master/ingress pairs, the worker placement minimum is
+ceil((W+P)/2) hosts, also at least P hosts and at least the etcd count.
+Resource sizing and failover headroom can require additional hosts.
+AZ CPU/memory totals include unplaced demand. Host totals include placed VMs only.
+Per-host CPU/memory over-capacity is separately allowed and highlighted; occupancy
+rules alone do not guarantee adequate compute capacity.
+
+NUMA
+Host and VM badges show a planning estimate: green local fit; amber memory/CPU
+risk; blue wide VM. Expanded hosts show per-node CPU/memory estimates. The
+heuristic assumes equal node resources, full configured RAM, no ESXi overhead,
+and no HA reservation. Actual ESXi locality and performance are not measured.
+
+SAVING
+Browser storage remembers the scenario. Export/Import uses JSON; Undo restores
+the last operation. Older scenarios migrate to schema 6: sizes, labels, host
+counts and region settings retained; legacy dedication/pin flags removed; host
+assignments recalculated under affinity rules. Counts exceeding available slots
+remain unplaced. Master AZ determines its paired ingress's AZ during migration.
+Reset restores the example; its three hosts per AZ are insufficient for defaults.
+
+SOURCE
+index.html, styles.css, app.mjs, model.mjs are modular sources. az-planner.html
+is the self-contained generated entry point. Google Fonts is optional.
+
+AI-generated application code prepared by Codex.
+
+CLUSTER CAPACITY
+The bottom section shows each Kubernetes cluster's configured VM count and
+total vCPUs/memory, with a breakdown by VM type and a total row. Totals include
+unplaced VMs and are calculated as VM count times that type's CPU/memory.
+These are configured resources, not ESX capacity, measured usage, or Kubernetes
+allocatable pod resources. No growth estimates are shown. The section updates
+with applied configuration, imports, reset and undo without altering placements.
+
+SCENARIO TITLES
+Edit Scenario title in the region banner above the Configuration panel and placement board. The title saves automatically in the
+browser and travels with exported/imported JSON. Download filenames are derived
+from the title. Titles may contain up to 120 characters; clearing the field uses
+Untitled scenario. Old scenarios without a title also use Untitled scenario.
+Changing the title does not recalculate VM placement. Reset uses Untitled scenario.
+
+CLIENT WORKLOAD BUDGET
+Capacity cards now lead with placed worker resources minus baseline deductions.
+Master/ingress/etcd and unplaced workers are excluded. Expand Deduction details
+for formulas, measurement provenance, units, caveats, and four editable values.
+Default reserve per worker: 12 - 11.5 = 0.5 vCPU; memory =
+(92677260 KiB x 1024 - 85861471162 bytes) / 2^30 = 8.419196194 GiB.
+Default services per cluster: 56.295 CPU and 244.075 GiB from the supplied
+worker-only, 1577/1577-pod namespace usage snapshot. This same fixed cluster
+baseline is initially used for both clusters, independently editable and saved.
+Existing decimal GB VM inputs are converted to GiB before measured deductions.
+Budget = placed workers x VM size - placed workers x reserve - services.
+This is before client usage, not free resources, pod-request capacity or a peak
+load guarantee. Oversized deductions warn and clamp displayed budgets to zero.
+Apply deductions updates the budget without changing placement; values persist through
+configuration changes, exports/imports, undo and browser reloads. Legacy
+scenarios receive the baseline defaults. All-node configured totals remain
+available in a separate collapsed disclosure.
+
+N+1 maintenance capacity: Each AZ CPU and memory total uses (configured ESX hosts - 1) × host resources, floored at zero. Region capacity sums these reduced AZ totals. Percentages and aggregate warnings use N+1 capacity. All hosts remain in placement; this reserve does not simulate a host evacuation. Client workload budgets use placed worker VM resources minus node reservations and cluster services, without an additional ESX host deduction.
+
+Configuration panel: Use the left/right arrow on the panel edge to collapse or expand it. Collapsing leaves a narrow Configuration tab and gives the placement board more width. Draft inputs are retained, and the panel preference is remembered in this browser.
+
+NUMA node containers: Expanded hosts group local VM cards inside their suggested NUMA node. Each node has separate CPU (vCPUs allocated / logical CPUs) and memory (GB allocated / node GB) bars. A VM with CPU or memory allocated on more than one node is displayed once across the node columns, with a per-node allocation breakdown. The node totals include these spanning VMs. These are planning estimates, not ESXi telemetry or pinning rules. Narrow screens stack the containers.
+
+Capacity CSV: Export capacity CSV beside Kubernetes cluster capacity downloads all Kubernetes clusters in one file. Rows include the client workload summary, placed-worker gross resources, node reservations, cluster services, net client budget, each configured VM type, and configured totals. Counts include unplaced VM counts. The region title and cluster label identify every row. Configured memory remains decimal GB; workload memory uses GiB, in separate labeled columns. Deduction rows contain positive amounts to subtract. Numeric values retain up to six decimal places. Export uses applied/saved scenario values; apply edited configurations or deductions before exporting.
