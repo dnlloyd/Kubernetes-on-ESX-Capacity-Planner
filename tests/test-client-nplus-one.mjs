@@ -1,5 +1,6 @@
+import {defaults} from './fixtures.mjs';
 import assert from 'node:assert/strict';
-import {defaults,reconcile,distribute,clientCapacity,usage} from '../model.mjs';
+import {reconcile,distribute,clientCapacity,usage} from '../model.mjs';
 const c=defaults();c.affinityEnabled=false;c.hosts=[35,34,34];
 const s=distribute(reconcile(c));const a=clientCapacity(s,'k8s-1');
 assert.equal(a.cpu,a.grossCpu-a.nodeCpu-c.clusters[0].deductions.servicesCpu);

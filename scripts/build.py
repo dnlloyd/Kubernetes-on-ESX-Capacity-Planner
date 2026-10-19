@@ -9,7 +9,9 @@ args = parser.parse_args()
 html = (root / 'index.html').read_text().replace(
     '<link rel="stylesheet" href="./styles.css">',
     '<style>' + (root / 'styles.css').read_text() + '</style>')
+worker_source = (root / 'model.mjs').read_text().replace('export ', '') + '\n' + (root / 'mobility-worker.mjs').read_text().split('\n', 1)[1]
 html = html.replace('<script type="module" src="./app.mjs"></script>',
+    '<script id="mobility-worker-source" type="text/plain">' + worker_source + '</script>' +
     '<script type="module">\n' + (root / 'model.mjs').read_text().replace('export ', '') + '\n' +
     (root / 'app.mjs').read_text().split('\n', 1)[1] + '\n</script>')
 target = root / 'az-planner.html'

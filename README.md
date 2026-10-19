@@ -33,6 +33,14 @@ Source code does **not** contain the currently edited browser scenario. Before m
 
 Using the same browser and `http://127.0.0.1:4173` normally retains existing local storage. Still export JSON as a backup before transitioning. The example defaults differ from the user's saved HACAS scenario; do not reset to the example to recover current settings.
 
+## Current placement rules
+
+The last ESX host in each AZ is always kept empty and labeled Reserved for maintenance. This is the same reserve already deducted from aggregate N+1 capacity. With affinity enabled, the planner reserves an etcd slot on every NUMA node, models four-vCPU etcd as 2+2, and places master/ingress/worker VMs independently within local CPU and memory budgets. Masters and ingress are separated by Kubernetes cluster and role across hosts. See docs/MODEL.md for the full rules and saved-scenario migration.
+
+## Modeled vMotion readiness
+
+Expand **Modeled vMotion readiness** below the placement board and click **Run assessment**. Each VM is tested independently against other active hosts in its AZ. Expand a result for eligible hosts and rejection reasons, or filter by AZ and status. Maintenance hosts cannot receive VMs. The assessment leaves placements unchanged, runs in the background with cancellation, and marks results out of date after placement inputs change. Results estimate model fit, not actual VMware compatibility or host evacuation.
+
 ## Develop and check
 
 Edit `index.html`, `styles.css`, `app.mjs`, and `model.mjs`. Rebuild after source edits:
@@ -49,6 +57,7 @@ python3 scripts/test.py
 - `AGENTS.md`: instructions for Codex.
 - `index.html`, `styles.css`, `app.mjs`, `model.mjs`: authoritative source.
 - `az-planner.html`: exact current self-contained app.
+- `mobility-worker.mjs`: background VM mobility assessment.
 - `USER-GUIDE.txt`: user-facing guide retained verbatim.
 - `scripts/`: repeatable build and regression-test runner.
 - `tests/`: current model regression tests.

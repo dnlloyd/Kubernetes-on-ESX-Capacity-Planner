@@ -5,6 +5,7 @@
 A static vanilla HTML/CSS/JavaScript application. No server-side logic or vCenter/Kubernetes integration. A static HTTP server supplies the files. External Google Fonts are optional presentation assets.
 
 - `model.mjs`: pure scenario operations, validation, migrations, placement, NUMA estimates, capacity math, CSV serialization.
+- `mobility-worker.mjs`: background assessment entry point importing the model generator.
 - `app.mjs`: DOM rendering, event delegation, form drafts, saved state, drag/drop, downloads, notifications.
 - `index.html`: static shell and controls, loads the two modules through app.mjs.
 - `styles.css`: all presentation, responsive layout, collapsed configuration drawer, host and NUMA containers.
@@ -12,7 +13,7 @@ A static vanilla HTML/CSS/JavaScript application. No server-side logic or vCente
 
 ## State and persistence
 
-The current scenario schemaVersion is 6. Scenario fields include title, regionType, affinityEnabled, uniform host topology/resources, a three-element host-count array, Kubernetes cluster profiles/deductions, and individual VM placements.
+The current scenario schemaVersion is 6; placementPolicyVersion is 3. Scenario fields include title, regionType, affinityEnabled, uniform host topology/resources, a three-element host-count array, Kubernetes cluster profiles/deductions, and individual VM placements.
 
 Browser localStorage keys:
 
@@ -20,7 +21,7 @@ Browser localStorage keys:
 - `az-planner-expanded-hosts-v1`: expanded ESX host cards.
 - `az-planner-configuration-collapsed`: left panel preference.
 
-`normalizeState` handles older schemas, former pin/dedication data, missing defaults, and public → ingress migration. Preserve imported VM IDs, sizes, and placements where current validation permits. Invalid/conflicting ingress/public profiles are rejected rather than silently dropped.
+`normalizeState` handles older schemas, former pin/dedication data, missing defaults, and public → ingress migration. Preserve imported VM IDs, sizes, and placements where current validation permits. Invalid/conflicting ingress/public profiles are rejected rather than silently dropped. Saved scenarios without placementPolicyVersion 3 are structurally validated, then repacked within their existing AZs if affinity is enabled or they use a maintenance host. Off-mode placements that already leave the last host empty are preserved. Current-policy scenarios assigning VMs to a maintenance host are rejected. IDs, profiles, counts and deductions are retained.
 
 regionType remains in scenario data for compatibility, but its old selector has been replaced with the editable Region Title field. `title` is the active display and export name.
 
@@ -28,9 +29,9 @@ Configuration edits are drafts until Apply configuration. Deduction changes use 
 
 ## Placement and rendering
 
-`reconcile` derives VM instances from profiles. `assignHosts` allocates hosts inside AZs. `distribute` distributes VMs across AZs and then assigns hosts. `pairedVM`, `affinitySummary`, and validation enforce affinity semantics when enabled.
+`reconcile` derives VM instances from profiles. `assignHosts` allocates hosts inside AZs. `distribute` distributes VMs across AZs and then assigns hosts. `affinityPlan` supplies the strict per-host NUMA allocation shared by assignment, validation, and display. `affinitySummary` exposes unplaced counts and policy incompatibilities. Master and ingress roles are independent.
 
-`numaPlan` returns node capacities/totals and a per-VM map. Each placement contains CPU and memory allocation arrays indexed by NUMA node, plus home, involved CPU nodes, remote-memory estimate, overflow, wide, and contention indicators. These arrays must sum back to each VM and to node totals.
+`numaMemoryPerNode` centralizes the fixed 10% ESX memory reserve before equal node division. This reserve applies only to the NUMA estimate. `numaPlan` returns node capacities/totals and a per-VM map. Each placement contains CPU and memory allocation arrays indexed by NUMA node, plus home, involved CPU nodes, remote-memory estimate, overflow, wide, and contention indicators. These arrays must sum back to each VM and to node totals.
 
 The expanded host view nests fully local VMs inside their node. A VM involving multiple CPU or memory nodes appears once in a shared spanning row, with per-node allocation values. Node meters already include spanning VM allocations. Collapsed hosts show total VMs, per-type counts, CPU/memory, and status.
 
@@ -41,3 +42,7 @@ Export scenario produces JSON via a Blob download. Import validates and normaliz
 Export capacity CSV uses capacityCsv(state). It includes all Kubernetes clusters, with client summary/calculation rows and configured VM type/total rows. Columns distinguish GB from GiB. UTF-8 BOM, CRLF lines, quoted/escaped text, spreadsheet-formula protection for text, and up to six decimal places are deliberate. Blank memory columns mean the other unit applies; do not sum the repeated summary and calculation budget rows.
 
 Browser settings and imports are user data, not part of the shipped source. Export JSON before moving origins.
+
+## Mobility assessment execution
+
+The modular app loads mobility-worker.mjs as a module Web Worker. scripts/build.py also embeds model code plus the worker entry point as inert text in az-planner.html; the app constructs a Blob worker from this text so the generated app stays self-contained. The worker iterates vmMobility and sends progress followed by complete rows. Cancellation terminates the worker. Results remain transient, outside scenario JSON and CSV. Placement/topology/profile/cluster-label changes invalidate results and cancel any running job; titles and deductions do not affect mobility. Expanded per-VM rejection details are rendered lazily. Maintenance-host drops are rejected before any AZ move, as well as being excluded by assignment, validation, and mobility checks.

@@ -1,5 +1,6 @@
+import {defaults} from './fixtures.mjs';
 import assert from 'node:assert/strict';
-import {defaults,reconcile,distribute,clusterCapacity,assignHosts} from '../model.mjs';
+import {reconcile,distribute,clusterCapacity,assignHosts} from '../model.mjs';
 const c=defaults();c.host={...c.host,cpu:96,coresPerSocket:24,memory:768};c.hosts=[35,34,34];c.clusters[0].profiles.master.cpu=8;c.clusters[0].profiles.ingress.cpu=8;c.clusters[0].profiles.worker={count:66,cpu:16,memory:90};c.clusters[1].profiles.worker.count=114;
 const s=distribute(reconcile(c)),before=JSON.stringify(s);
 assert.deepEqual(clusterCapacity(s,'k8s-1'),{count:77,cpu:1124,memory:6164,unplaced:0});

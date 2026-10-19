@@ -1,6 +1,7 @@
+import {defaults} from './fixtures.mjs';
 import assert from 'node:assert/strict';
 
-import {capacityCsv,defaults,reconcile,distribute} from '../model.mjs';
+import {capacityCsv,reconcile,distribute} from '../model.mjs';
 const cfg=defaults();cfg.affinityEnabled=false;cfg.hosts=[35,34,34];cfg.title='HACAS, "Presentation"';cfg.clusters[0].label='Pres-0';cfg.clusters[1].label='Pres-1';cfg.clusters[0].profiles.worker.memory=90;
 const s=distribute(reconcile(cfg));const before=JSON.stringify(s),csv=capacityCsv(s);
 assert.equal(JSON.stringify(s),before);assert.ok(csv.startsWith('\uFEFF'));assert.equal(csv.split('\r\n').length,22);

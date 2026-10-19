@@ -1,16 +1,16 @@
 export const TYPES = ['etcd', 'master', 'ingress', 'worker'];
 export const AZS = ['AZ1', 'AZ2', 'AZ3'];
 export const REGION_TYPES = { presentation: 'Presentation tier', mid: 'Mid-tier' };
-export function defaultDeductions() { return {nodeCpu:0.5,nodeMemoryGiB:(92677260*1024-85861471162)/2**30,servicesCpu:56.295,servicesMemoryGiB:244.075}; }
+export function defaultDeductions() { return {nodeCpu:0.5,nodeMemoryGiB:8.5,servicesCpu:60,servicesMemoryGiB:250}; }
 export function defaultCluster(id, label) {
   return { id, label, deductions:defaultDeductions(), profiles: {
     etcd: { count: 5, cpu: 4, memory: 16 }, master: { count: 3, cpu: 6, memory: 32 },
-    ingress: { count: 3, cpu: 6, memory: 16 }, worker: { count: 186, cpu: 12, memory: 120 }
+    ingress: { count: 3, cpu: 6, memory: 16 }, worker: { count: 6, cpu: 12, memory: 60 }
   } };
 }
 export function defaults() {
-  return { schemaVersion: 6, title: 'Untitled scenario', affinityEnabled: true, regionType: 'presentation', host: { cpu: 64, memory: 512, sockets: 2, coresPerSocket: 16, numaNodes: 2, hyperthreading: true }, hosts: [3, 3, 3],
-    clusters: [defaultCluster('k8s-1', 'Kubernetes cluster 1'), defaultCluster('k8s-2', 'Kubernetes cluster 2')], vms: [] };
+  return { schemaVersion: 6, placementPolicyVersion: 3, title: 'Untitled scenario', affinityEnabled: false, regionType: 'presentation', host: { cpu: 96, memory: 768, sockets: 2, coresPerSocket: 24, numaNodes: 2, hyperthreading: true }, hosts: [4, 4, 4],
+    clusters: [defaultCluster('k8s-1', 'Kubernetes cluster 1')], vms: [] };
 }
 function positive(n, integer = false) { return Number.isFinite(n) && n > 0 && n <= 1000000 && (!integer || Number.isInteger(n)); }
 export function logicalCores(host) { return host.sockets * host.coresPerSocket * (host.hyperthreading ? 2 : 1); }
@@ -67,6 +67,7 @@ export function usage(state, az) {
   const capacity = { cpu: state.host.cpu * availableHosts, memory: state.host.memory * availableHosts };
   return { vms, cpu, memory, capacity, over: cpu > capacity.cpu || memory > capacity.memory };
 }
+export function isMaintenanceHost(state, az, host) { return host === state.hosts[az] - 1; }
 export function hostName(az, index) { return `az${az+1}${String(index+1).padStart(2,'0')}`; }
 export function hostUsage(state, az, host) {
   const vms = state.vms.filter(v=>v.az===az && v.host===host);
@@ -74,60 +75,81 @@ export function hostUsage(state, az, host) {
   const memory=vms.reduce((n,v)=>n+profileFor(state,v).memory,0);
   return {vms,cpu,memory,capacity:{...state.host},over:cpu>state.host.cpu || memory>state.host.memory};
 }
-export function pairedVM(state, vm) {
-  if(!['master','ingress'].includes(vm.type))return null;
-  const other=vm.type==='master'?'ingress':'master';
-  return state.vms.find(v=>v.clusterId===vm.clusterId&&v.name===vm.name.replace(vm.type,other))??null;
+// Affinity policy is derived from host membership; no persisted NUMA pinning.
+export function affinityPlan(state, members) {
+  const count=state.host.numaNodes,physical=state.host.sockets*state.host.coresPerSocket/count;
+  const memoryReserve=Math.max(0,...state.clusters.filter(c=>c.profiles.etcd.count>0).map(c=>c.profiles.etcd.memory/2));
+  const capacity={physical,logical:state.host.cpu/count,memory:numaMemoryPerNode(state.host)};
+  const cpuBudget=Math.max(0,physical-2),memoryBudget=capacity.memory-memoryReserve;
+  const nodes=Array.from({length:count},(_,id)=>({id,cpu:0,memory:0})),placements=new Map();
+  const fail=reason=>({capacity,nodes,placements,cpuBudget,memoryReserve,fits:false,reason,memoryRisk:false,contention:false,wide:false,status:'risk'});
+  const etcd=members.filter(v=>v.type==='etcd');
+  if(etcd.length>1)return fail('At most one etcd VM per host.');
+  for(const type of ['master','ingress'])for(const cluster of state.clusters)
+    if(members.filter(v=>v.type===type&&v.clusterId===cluster.id).length>1)return fail(`At most one ${type} from each Kubernetes cluster per host.`);
+  const ordered=members.filter(v=>v.type!=='etcd').sort((a,b)=>profileFor(state,b).cpu-profileFor(state,a).cpu||profileFor(state,b).memory-profileFor(state,a).memory||a.id.localeCompare(b.id));
+  for(const vm of ordered) {
+    const p=profileFor(state,vm);
+    const eligible=nodes.filter(n=>n.cpu+p.cpu<=cpuBudget+1e-8&&n.memory+p.memory<=memoryBudget+1e-8)
+      .sort((a,b)=>(cpuBudget-a.cpu-p.cpu)-(cpuBudget-b.cpu-p.cpu)||a.memory-b.memory||a.id-b.id);
+    const node=eligible[0];if(!node)return fail(`${vm.name} cannot fit within a node after the etcd reserve.`);
+    const cpuByNode=Array(count).fill(0),memoryByNode=Array(count).fill(0);
+    cpuByNode[node.id]=p.cpu;memoryByNode[node.id]=p.memory;node.cpu+=p.cpu;node.memory+=p.memory;
+    placements.set(vm.id,{home:node.id,nodes:[node.id],wide:false,remote:0,overflow:0,contention:false,cpuByNode,memoryByNode});
+  }
+  for(const vm of etcd) {
+    const p=profileFor(state,vm);
+    if(count!==2||p.cpu!==4)return fail('Etcd 2+2 policy requires a four-vCPU etcd VM and exactly two NUMA nodes.');
+    if(nodes.some(n=>n.cpu+2>physical+1e-8||n.memory+p.memory/2>capacity.memory+1e-8))return fail('Insufficient NUMA capacity for etcd.');
+    for(const n of nodes){n.cpu+=2;n.memory+=p.memory/2;}
+    placements.set(vm.id,{home:0,nodes:[0,1],splitEtcd:true,wide:false,remote:0,overflow:0,contention:false,cpuByNode:[2,2],memoryByNode:[p.memory/2,p.memory/2]});
+  }
+  return {capacity,nodes,placements,cpuBudget,memoryReserve,fits:true,memoryRisk:false,contention:false,wide:false,status:'fit'};
 }
 export function assignHosts(state) {
-  const next=structuredClone(state);delete next.dedications;
+  const next=structuredClone(state);next.placementPolicyVersion=3;delete next.dedications;
   // Host assignments are calculated each time, never affinity/pinning metadata.
   next.vms.forEach(v=>{v.host=null;delete v.pinned;});
   if(!next.affinityEnabled) {
     for(let az=0;az<3;az++) {
-      const loads=Array.from({length:next.hosts[az]},(_,host)=>({host,cpu:0,memory:0,count:0}));
+      const loads=Array.from({length:Math.max(0,next.hosts[az]-1)},(_,host)=>({host,cpu:0,memory:0,count:0}));
       const members=next.vms.filter(v=>v.az===az).sort((a,b)=>profileFor(next,b).cpu-profileFor(next,a).cpu || profileFor(next,b).memory-profileFor(next,a).memory || a.id.localeCompare(b.id));
       for(const vm of members) {
         const p=profileFor(next,vm);
         loads.sort((a,b)=>Number(a.cpu+p.cpu>next.host.cpu||a.memory+p.memory>next.host.memory)-Number(b.cpu+p.cpu>next.host.cpu||b.memory+p.memory>next.host.memory) || a.cpu-b.cpu || a.memory-b.memory || a.count-b.count || a.host-b.host);
-        const l=loads[0];vm.host=l.host;l.cpu+=p.cpu;l.memory+=p.memory;l.count++;
+        const l=loads[0];if(!l)continue;vm.host=l.host;l.cpu+=p.cpu;l.memory+=p.memory;l.count++;
       }
     }
     return next;
   }
-  for(const vm of next.vms.filter(v=>v.type==='ingress')) {const mate=pairedVM(next,vm);if(mate)vm.az=mate.az;}
   for(let az=0;az<3;az++) {
-    const loads=Array.from({length:next.hosts[az]},(_,host)=>({host,cpu:0,memory:0,pair:0,etcd:0,worker:0}));
-    const add=(vm,l)=>{const p=profileFor(next,vm);vm.host=l.host;l.cpu+=p.cpu;l.memory+=p.memory;l[vm.type==='etcd'?'etcd':vm.type==='worker'?'worker':'pair']++;};
-    const choose=(pool,vms)=>{
-      const cpu=vms.reduce((n,v)=>n+profileFor(next,v).cpu,0),memory=vms.reduce((n,v)=>n+profileFor(next,v).memory,0);
-      return pool.sort((a,b)=>Number(a.cpu+cpu>next.host.cpu||a.memory+memory>next.host.memory)-Number(b.cpu+cpu>next.host.cpu||b.memory+memory>next.host.memory) || a.cpu-b.cpu || a.memory-b.memory || a.host-b.host)[0];
-    };
+    const loads=Array.from({length:Math.max(0,next.hosts[az]-1)},(_,host)=>({host,members:[],cpu:0,memory:0}));
+    // Largest first, then least-loaded eligible host for every role. NUMA fit remains strict.
     const members=next.vms.filter(v=>v.az===az);
-    for(const master of members.filter(v=>v.type==='master')) {
-      const mate=pairedVM(next,master);if(!mate)continue;
-      const l=choose(loads.filter(l=>l.pair===0),[master,mate]);
-      if(l){add(master,l);add(mate,l);}
-    }
-    for(const etcd of members.filter(v=>v.type==='etcd')) {
-      const l=choose(loads.filter(l=>l.etcd===0),[etcd]);if(l)add(etcd,l);
-    }
-    // Interleave clusters to avoid giving the first cluster all scarce worker slots.
-    const queues=next.clusters.map(c=>members.filter(v=>v.type==='worker'&&v.clusterId===c.id));
-    for(let i=0;i<Math.max(0,...queues.map(q=>q.length));i++)for(const q of queues) {
-      const vm=q[i];if(!vm)continue;
-      const l=choose(loads.filter(l=>l.worker<(l.pair?1:2)),[vm]);if(l)add(vm,l);
+    const ordered=members.filter(v=>v.type!=='etcd').sort((a,b)=>profileFor(next,b).cpu-profileFor(next,a).cpu||profileFor(next,b).memory-profileFor(next,a).memory||a.name.localeCompare(b.name,undefined,{numeric:true})||a.clusterId.localeCompare(b.clusterId));
+    ordered.push(...members.filter(v=>v.type==='etcd').sort((a,b)=>a.name.localeCompare(b.name)||a.clusterId.localeCompare(b.clusterId)));
+    for(const vm of ordered) {
+      let best=null;
+      for(const load of loads) {
+        const plan=affinityPlan(next,[...load.members,vm]);if(!plan.fits)continue;
+        // Compare projected CPU and memory pressure, rather than packing pets onto busy hosts.
+        const p=profileFor(next,vm);
+        const cpu=(load.cpu+p.cpu)/(next.host.sockets*next.host.coresPerSocket);
+        const memory=(load.memory+p.memory)/(numaMemoryPerNode(next.host)*next.host.numaNodes);
+        const rank=[Math.max(cpu,memory),cpu+memory,load.members.length,load.host];
+        const first=best?rank.findIndex((x,i)=>Math.abs(x-best.rank[i])>1e-8):-1;
+        if(!best||(first>=0&&rank[first]<best.rank[first]))best={load,rank};
+      }
+      if(best){vm.host=best.load.host;best.load.members.push(vm);best.load.cpu+=profileFor(next,vm).cpu;best.load.memory+=profileFor(next,vm).memory;}
     }
   }
   return next;
 }
 export function affinitySummary(state,az) {
-  const members=state.vms.filter(v=>v.az===az),pairs=members.filter(v=>v.type==='master'&&pairedVM(state,v)).length;
-  const workers=members.filter(v=>v.type==='worker').length,etcd=members.filter(v=>v.type==='etcd').length;
-  const unpaired=state.affinityEnabled?members.filter(v=>['master','ingress'].includes(v.type)&&!pairedVM(state,v)):[];
-  const unplaced=members.filter(v=>v.host===null);
-  const minimumHosts=state.affinityEnabled?Math.max(etcd,pairs,Math.ceil((workers+pairs)/2)):1;
-  return {unplaced,unpaired,pairs,workers,minimumHosts,workerSlots:2*state.hosts[az]-Math.min(pairs,state.hosts[az])};
+  const members=state.vms.filter(v=>v.az===az),unplaced=members.filter(v=>v.host===null);
+  const issues=[];
+  if(state.affinityEnabled&&state.clusters.some(c=>c.profiles.etcd.count>0)&&(state.host.numaNodes!==2||state.clusters.some(c=>c.profiles.etcd.count>0&&c.profiles.etcd.cpu!==4)))issues.push('Etcd 2+2 requires four-vCPU etcd profiles and two NUMA nodes per host.');
+  return {unplaced,issues};
 }
 export function distribute(state) {
   const next=structuredClone(state);
@@ -144,7 +166,7 @@ export function distribute(state) {
   }
   return assignHosts(next,{balanceWorkers:true});
 }
-export function validateState(s) {
+export function validateState(s, {allowMaintenanceHost=false}={}) {
   validateConfig(s);
   if (s.schemaVersion !== 6 || !Array.isArray(s.vms)) throw Error('Scenario version or VM placements are invalid.');
   const expected = reconcile(s).vms;
@@ -154,17 +176,13 @@ export function validateState(s) {
   for (const v of s.vms) {
     const match = lookup.get(v?.id);
     if (!match || match.type !== v.type || match.clusterId !== v.clusterId || match.name !== v.name || ids.has(v.id) || ![0,1,2].includes(v.az) || (v.host!==null && (!Number.isInteger(v.host) || v.host<0 || v.host>=s.hosts[v.az]))) throw Error('Scenario contains invalid or duplicate VM placements.');
+    if(!allowMaintenanceHost && v.host!==null && isMaintenanceHost(s,v.az,v.host))throw Error('Scenario schedules a VM on a host reserved for maintenance.');
     ids.add(v.id);
   }
   if(!s.affinityEnabled)return true;
-  for(const vm of s.vms) {
-    const mate=pairedVM(s,vm);
-    if(mate&&(mate.az!==vm.az||mate.host!==vm.host))throw Error('Master/ingress pairs must share an AZ and ESX host.');
-    if(['master','ingress'].includes(vm.type)&&!mate&&vm.host!==null)throw Error('Unpaired master/ingress VMs must remain unplaced.');
-  }
   for(let az=0;az<3;az++)for(const host of new Set(s.vms.filter(v=>v.az===az&&v.host!==null).map(v=>v.host))) {
-    const vms=s.vms.filter(v=>v.az===az&&v.host===host),n=t=>vms.filter(v=>v.type===t).length;
-    if(n('etcd')>1||n('master')>1||n('ingress')>1||n('worker')>(n('master')||n('ingress')?1:2))throw Error('Scenario violates host affinity occupancy limits.');
+    const plan=affinityPlan(s,s.vms.filter(v=>v.az===az&&v.host===host));
+    if(!plan.fits)throw Error(`Scenario violates NUMA affinity rules: ${plan.reason}`);
   }
   return true;
 }
@@ -192,17 +210,24 @@ export function normalizeState(source) {
     s={...s,schemaVersion:6,vms:s.vms.map(v=>({id:v.id,clusterId:v.clusterId,name:v.name,type:v.type,az:v.az,host:null}))};
     validateConfig(s);s=assignHosts(s);
   }
+  if(s?.placementPolicyVersion!==3) {
+    validateState({...s,affinityEnabled:false},{allowMaintenanceHost:true});
+    const needsEvacuation=s.vms.some(v=>v.host!==null&&isMaintenanceHost(s,v.az,v.host));
+    s=s.affinityEnabled||needsEvacuation?assignHosts(s):{...s,placementPolicyVersion:3};
+  }
   validateState(s);
-  return {schemaVersion:6,title:s.title,affinityEnabled:s.affinityEnabled,regionType:s.regionType,host:{cpu:s.host.cpu,memory:s.host.memory,sockets:s.host.sockets,coresPerSocket:s.host.coresPerSocket,numaNodes:s.host.numaNodes,hyperthreading:s.host.hyperthreading},hosts:[...s.hosts],
+  return {schemaVersion:6,placementPolicyVersion:3,title:s.title,affinityEnabled:s.affinityEnabled,regionType:s.regionType,host:{cpu:s.host.cpu,memory:s.host.memory,sockets:s.host.sockets,coresPerSocket:s.host.coresPerSocket,numaNodes:s.host.numaNodes,hyperthreading:s.host.hyperthreading},hosts:[...s.hosts],
     clusters:s.clusters.map(c=>({id:c.id,label:c.label.trim(),deductions:{...(c.deductions??defaultDeductions())},profiles:Object.fromEntries(TYPES.map(t=>[t,{count:c.profiles[t].count,cpu:c.profiles[t].cpu,memory:c.profiles[t].memory}]))})),
     vms:s.vms.map(v=>({id:v.id,clusterId:v.clusterId,name:v.name,type:v.type,az:v.az,host:v.host}))};
 }
 
 // Derived planning estimate only: largest-memory-first placement, balanced CPU,
-// equal node resources, full configured RAM, no overhead or ESXi telemetry.
+// Equal node resources after a fixed 10% ESX memory reserve; no ESXi telemetry.
+export function numaMemoryPerNode(host) { return host.memory * (1 - 0.1) / host.numaNodes; }
 export function numaPlan(state, az, host) {
+  if(state.affinityEnabled)return affinityPlan(state,hostUsage(state,az,host).vms);
   const count=state.host.numaNodes, physical=state.host.sockets*state.host.coresPerSocket/count;
-  const capacity={physical,logical:state.host.cpu/count,memory:state.host.memory/count};
+  const capacity={physical,logical:state.host.cpu/count,memory:numaMemoryPerNode(state.host)};
   const nodes=Array.from({length:count},(_,id)=>({id,cpu:0,memory:0})), placements=new Map();
   const vms=hostUsage(state,az,host).vms.sort((a,b)=>profileFor(state,b).memory-profileFor(state,a).memory || profileFor(state,b).cpu-profileFor(state,a).cpu || a.id.localeCompare(b.id));
   for(const vm of vms) {
@@ -264,7 +289,7 @@ export function capacityCsv(state) {
     add('Client workload summary','Available for client workloads',worker.placed,worker.unplaced,worker.cpu,'',worker.memoryGiB);
     add('Client workload calculation','Placed workers, gross',worker.placed,worker.unplaced,worker.grossCpu,'',worker.grossMemoryGiB);
     add('Client workload calculation','Node reservations (deduct)', '', '',worker.nodeCpu,'',worker.nodeMemoryGiB);
-    add('Client workload calculation','Cluster services (deduct)', '', '',d.servicesCpu,'',d.servicesMemoryGiB);
+    add('Client workload calculation','Platform overhead (deduct)', '', '',d.servicesCpu,'',d.servicesMemoryGiB);
     add('Client workload calculation','Client workload budget',worker.placed,worker.unplaced,worker.cpu,'',worker.memoryGiB);
     for(const type of TYPES) {
       const p=cluster.profiles[type],unplaced=state.vms.filter(v=>v.clusterId===cluster.id&&v.type===type&&v.host===null).length;
@@ -279,4 +304,31 @@ export function capacityCsv(state) {
     return '"'+safe.replaceAll('"','""')+'"';
   };
   return '\uFEFF'+rows.map(row=>row.map(cell).join(',')).join('\r\n')+'\r\n';
+}
+
+// Independent single-VM moves only. Never repacks other hosts or changes the scenario.
+export function* vmMobility(state) {
+  const hosts=state.hosts.map((count,az)=>Array.from({length:count},(_,host)=>state.vms.filter(v=>v.az===az&&v.host===host)));
+  for(const vm of state.vms) {
+    const row={id:vm.id,name:vm.name,cluster:state.clusters.find(c=>c.id===vm.clusterId).label,az:vm.az,source:vm.host,eligibleHosts:[],rejected:[],maintenanceHost:state.hosts[vm.az]-1,status:'unplaced'};
+    if(vm.host===null){yield row;continue;}
+    for(let host=0;host<state.hosts[vm.az];host++) {
+      if(host===vm.host)continue;
+      let reason=null;
+      if(isMaintenanceHost(state,vm.az,host))reason='Maintenance mode — scheduling prohibited';
+      else {
+        const members=[...hosts[vm.az][host],vm];
+        if(state.affinityEnabled) {
+          const plan=affinityPlan(state,members);
+          if(!plan.fits)reason=plan.reason.includes('cannot fit within a node')?'NUMA CPU/memory fit — insufficient local capacity after the etcd reserve':plan.reason;
+        } else {
+          const cpu=members.reduce((sum,v)=>sum+profileFor(state,v).cpu,0),memory=members.reduce((sum,v)=>sum+profileFor(state,v).memory,0);
+          if(cpu>state.host.cpu||memory>state.host.memory)reason=cpu>state.host.cpu&&memory>state.host.memory?'Host CPU and memory capacity exceeded':cpu>state.host.cpu?'Host CPU capacity exceeded':'Host memory capacity exceeded';
+        }
+      }
+      if(reason)row.rejected.push({host,reason});else row.eligibleHosts.push(host);
+    }
+    row.status=row.eligibleHosts.length===0?'blocked':row.eligibleHosts.length===1?'limited':'movable';
+    yield row;
+  }
 }

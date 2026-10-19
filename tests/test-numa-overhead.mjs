@@ -1,0 +1,13 @@
+import {defaults} from './fixtures.mjs';
+import assert from 'node:assert/strict';
+import {numaPlan,numaMemoryPerNode,usage,hostUsage,clientCapacity} from '../model.mjs';
+const s=defaults();s.affinityEnabled=false;s.host.memory=768;
+const close=(a,b)=>assert.ok(Math.abs(a-b)<1e-8,`${a} != ${b}`);
+for(const nodes of [1,2,4])close(numaMemoryPerNode({...s.host,numaNodes:nodes}),691.2/nodes);
+const plan=numaPlan(s,0,0);close(plan.capacity.memory,345.6);assert.equal(plan.capacity.logical,s.host.cpu/2);
+s.vms=[{id:'test',clusterId:'k8s-1',type:'worker',az:0,host:0}];s.clusters[0].profiles.worker={count:1,cpu:12,memory:350};
+const before=JSON.stringify(s),spanning=numaPlan(s,0,0);close(spanning.placements.get('test').remote,4.4);assert.equal(spanning.status,'risk');assert.equal(JSON.stringify(s),before);
+assert.equal(hostUsage(s,0,0).capacity.memory,768);assert.equal(usage(s,0).capacity.memory,1536);
+close(clientCapacity(s,'k8s-1').grossMemoryGiB,350*1e9/2**30);
+s.clusters[0].profiles.worker.memory=700;close(numaPlan(s,0,0).placements.get('test').overflow,8.8);
+console.log('PASS: 10% NUMA reserve, arbitrary node counts, memory spanning/overflow boundaries; CPU, host/AZ capacity and worker budgets unchanged.');
