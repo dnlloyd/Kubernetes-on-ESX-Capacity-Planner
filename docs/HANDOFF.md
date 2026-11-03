@@ -14,7 +14,7 @@ Bottom capacity cards show placed-worker client budgets. Collapsible panels hold
 
 ## Decisions to preserve
 
-- N+1 reserves the last host per AZ in placement and aggregate CPU/memory totals. Do not subtract another host from client workload budgets; those use placed workers.
+- The configurable maintenance reserve (default 1, e.g. N+1 or N+2) excludes the last reserved hosts per AZ from placement and aggregate CPU/memory totals. Do not subtract another host from client workload budgets; those use placed workers.
 - GB inputs and GiB workload budgets are distinct; do not change this merely because their totals differ.
 - No host pinning or dedicated pet hosts; use the current independent-role affinity rules and automatic allocation.
 - Editable custom role names and optional master pairing were explored as mockups but **not implemented**. The user chose only a public → ingress rename for now.
@@ -59,8 +59,22 @@ A collapsed Modeled vMotion readiness panel provides Run assessment, cancellatio
 
 ## New-scenario defaults
 
-New scenarios and Reset use one cluster with 5 etcd (4/16), 3 master (6/32), 3 ingress (6/16), and 6 workers (12/60), in vCPU/GB. ESX uses 2 sockets, 24 cores/socket, HT active, 768 GB, 2 NUMA nodes, hosts 4/4/4. Affinity rules are disabled by default. Saved scenarios are not overwritten. Historical resource regression tests use tests/fixtures.mjs; tests/test-defaults.mjs checks the new UI defaults directly.
+New scenarios and Reset use one cluster with 5 etcd (6/16), 3 master (6/32), 3 ingress (10/16), and 6 workers (21/60), in vCPU/GB. ESX uses 2 sockets, 24 cores/socket, HT active, 768 GB, 2 NUMA nodes, hosts 4/4/4. Affinity rules are disabled by default. Saved scenarios are not overwritten. Historical resource regression tests use tests/fixtures.mjs; tests/test-defaults.mjs checks the new UI defaults directly.
 
 Reset is a standard secondary button and restores the current new-scenario defaults with affinity disabled. It also clears transient mobility results and filters. Undo can recover the prior scenario. An already open browser page must be refreshed to load updated source before Reset uses the latest defaults.
 
 Default deductions are now 0.5 vCPU / 8.5 GiB per worker plus 60 vCPUs / 250 GiB Platform overhead per cluster. Platform overhead replaces the Services label in the UI and CSV; existing servicesCpu/servicesMemoryGiB JSON fields remain compatible. Historical measurements remain documented as provenance. Saved deductions are preserved.
+
+## Configurable maintenance reserve
+
+Reserved ESX hosts per AZ is now configurable, default 1. Set 2 for N+2 and Apply configuration. All capacity labels, empty maintenance cards, scheduling, drag/drop exclusions, mobility checks and stale-result detection use this shared value. The input cannot exceed the smallest AZ host count. Reserving all hosts is allowed and leaves VMs unplaced. Scenario JSON retains maintenanceReserve; older files default to 1. This supersedes earlier fixed one-host descriptions.
+
+## Kubernetes capacity reserve
+
+The Kubernetes cluster capacity section now has an on/off capacity reserve plus editable percentage. Default on, exactly one sixth (displayed 16.67%). Deduct from worker allocatable resources after node reserves, then subtract full platform overhead. It is separate from ESX maintenance hosts and changes no placements. Percent/state persist in scenario JSON; older scenarios missing the field adopt the new on default, explicit off remains off. CSV includes a separate percentage reserve row. Small worker pools may show zero client capacity when fixed overhead exceeds the remaining budget.
+
+## Current etcd policy: 3+3
+
+Placement policy version 4 supersedes the 2+2 CPU allowance: six-vCPU etcd splits 3+3, with three cores reserved on each node even without etcd. Non-etcd local CPU budget is 21 on a 24-core node. New/reset defaults are etcd/master/ingress/worker CPUs 6/6/10/21; counts and memory stay unchanged. Prior-policy imports retain their configured sizes and repack within saved AZs when rules are on. Incompatible sizes remain visibly unplaced; off-mode placements remain preserved when valid. Mandatory master/ingress pairing has not been enabled; the user asked for its rationale, not its implementation.
+
+The fixed two-Kubernetes-cluster limit has been removed from the Add control, configuration validation and imports. Defaults still create one cluster. Every cluster retains independent profiles/deductions, capacity cards, CSV rows and affinity role separation; etcd separation remains global. The existing total-VM and import-size constraints remain unchanged.

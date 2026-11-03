@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {defaults,hostDisplayOrder,hostName} from '../model.mjs';
+const s=defaults();s.hosts=[9,9,9];s.maintenanceReserve=2;
+s.vms=[{type:'worker',host:0,az:0,clusterId:'k8s-1'},{type:'ingress',host:2,az:0,clusterId:'k8s-1'},{type:'master',host:3,az:0,clusterId:'k8s-1'},{type:'worker',host:3,az:0,clusterId:'k8s-1'},{type:'etcd',host:4,az:0,clusterId:'k8s-2'},{type:'master',host:4,az:0,clusterId:'k8s-1'},{type:'etcd',host:5,az:0,clusterId:'k8s-1'},{type:'master',host:6,az:0,clusterId:'k8s-2'},{type:'etcd',host:null,az:0,clusterId:'k8s-1'},{type:'etcd',host:0,az:1,clusterId:'k8s-1'}];
+const before=JSON.stringify(s),order=hostDisplayOrder(s,0);
+assert.deepEqual(order,[4,5,3,6,2,0,1,7,8]);
+assert.deepEqual(order.map(h=>hostName(0,h)),['az105','az106','az104','az107','az103','az101','az102','az108','az109']);
+assert.equal(new Set(order).size,9);assert.equal(JSON.stringify(s),before);
+assert.deepEqual(hostDisplayOrder(s,0),order);
+assert.deepEqual(hostDisplayOrder(s,1),[0,1,2,3,4,5,6,7,8]);
+assert.deepEqual(hostDisplayOrder({...s,affinityEnabled:!s.affinityEnabled},0),order);
+console.log('PASS: host role priority across clusters, mixed roles, name ties, empty/maintenance last, unplaced and AZ isolation, no placement mutation.');

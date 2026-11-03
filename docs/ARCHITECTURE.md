@@ -13,7 +13,7 @@ A static vanilla HTML/CSS/JavaScript application. No server-side logic or vCente
 
 ## State and persistence
 
-The current scenario schemaVersion is 6; placementPolicyVersion is 3. Scenario fields include title, regionType, affinityEnabled, uniform host topology/resources, a three-element host-count array, Kubernetes cluster profiles/deductions, and individual VM placements.
+The current scenario schemaVersion is 6; placementPolicyVersion is 4. Scenario fields include title, regionType, affinityEnabled, uniform host topology/resources, a three-element host-count array, maintenanceReserve (shared reserve per AZ, default 1), Kubernetes cluster profiles/deductions, and individual VM placements.
 
 Browser localStorage keys:
 
@@ -21,7 +21,7 @@ Browser localStorage keys:
 - `az-planner-expanded-hosts-v1`: expanded ESX host cards.
 - `az-planner-configuration-collapsed`: left panel preference.
 
-`normalizeState` handles older schemas, former pin/dedication data, missing defaults, and public → ingress migration. Preserve imported VM IDs, sizes, and placements where current validation permits. Invalid/conflicting ingress/public profiles are rejected rather than silently dropped. Saved scenarios without placementPolicyVersion 3 are structurally validated, then repacked within their existing AZs if affinity is enabled or they use a maintenance host. Off-mode placements that already leave the last host empty are preserved. Current-policy scenarios assigning VMs to a maintenance host are rejected. IDs, profiles, counts and deductions are retained.
+`normalizeState` handles older schemas, former pin/dedication data, missing defaults, and public → ingress migration. Preserve imported VM IDs, sizes, and placements where current validation permits. Invalid/conflicting ingress/public profiles are rejected rather than silently dropped. Saved scenarios without placementPolicyVersion 4 are structurally validated, then repacked within their existing AZs if affinity is enabled or they use a maintenance host. Off-mode placements that already leave the last host empty are preserved. Current-policy scenarios assigning VMs to a maintenance host are rejected. IDs, profiles, counts and deductions are retained.
 
 regionType remains in scenario data for compatibility, but its old selector has been replaced with the editable Region Title field. `title` is the active display and export name.
 
@@ -46,3 +46,11 @@ Browser settings and imports are user data, not part of the shipped source. Expo
 ## Mobility assessment execution
 
 The modular app loads mobility-worker.mjs as a module Web Worker. scripts/build.py also embeds model code plus the worker entry point as inert text in az-planner.html; the app constructs a Blob worker from this text so the generated app stays self-contained. The worker iterates vmMobility and sends progress followed by complete rows. Cancellation terminates the worker. Results remain transient, outside scenario JSON and CSV. Placement/topology/profile/cluster-label changes invalidate results and cancel any running job; titles and deductions do not affect mobility. Expanded per-VM rejection details are rendered lazily. Maintenance-host drops are rejected before any AZ move, as well as being excluded by assignment, validation, and mobility checks.
+
+maintenanceReserve is an additive scenario field: old JSON without it imports as 1 without a schema/storage-key change. New exports retain the configured value. reservedHostCount, availableHostCount, and isMaintenanceHost centralize capacity, scheduling and mobility exclusions. Reserve changes invalidate mobility results.
+
+The additive kubernetesReserve scenario object is {enabled, percent}, default enabled at 100/6. normalizeState supplies it to older scenarios; assignHosts and Apply configuration preserve it. clientCapacity centralizes reserve amounts and final budgets; rendering and capacityCsv use those amounts. This is a transient-free persisted input, not an ESX placement constraint. It does not invalidate mobility results. The UI has a shared on/off switch and separately applied percentage draft below Kubernetes cluster capacity; the rounded display never replaces the exact default unless edited.
+
+Affinity policy 4 reserves three CPU cores per NUMA node and requires six-vCPU etcd with a 3+3 split. affinityPlan exposes cpuReserve for the NUMA label, and rendering derives split labels from allocation arrays. Migration retains configured VM profiles and identities, repacking prior enabled policies without resizing demand.
+
+hostDisplayOrder sorts ESX panels by the highest-priority contained VM role: etcd, master, ingress, worker-only, empty active, then maintenance. Host index breaks ties. This changes only presentation; host identities, assignments, NUMA allocations and capacity are unchanged.

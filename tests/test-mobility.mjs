@@ -3,10 +3,10 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import {defaults,reconcile,assignHosts,vmMobility,isMaintenanceHost} from '../model.mjs';
 function scenario(counts,hosts=4){const c=defaults();c.affinityEnabled=true;c.clusters=c.clusters.slice(0,1);c.hosts=[hosts,hosts,hosts];c.host={...c.host,cpu:96,coresPerSocket:24,memory:768};for(const t of Object.keys(c.clusters[0].profiles))c.clusters[0].profiles[t].count=0;for(const [t,p] of Object.entries(counts))c.clusters[0].profiles[t]={...c.clusters[0].profiles[t],...p};const s=reconcile(c);s.vms.forEach(v=>v.az=0);return assignHosts(s);}
-const sparse=scenario({worker:{count:1,cpu:22,memory:120}}),before=JSON.stringify(sparse),rows=[...vmMobility(sparse)];
+const sparse=scenario({worker:{count:1,cpu:21,memory:120}}),before=JSON.stringify(sparse),rows=[...vmMobility(sparse)];
 assert.equal(rows[0].status,'movable');assert.deepEqual(rows[0].eligibleHosts,[1,2]);assert.deepEqual(rows[0].rejected,[{host:3,reason:'Maintenance mode — scheduling prohibited'}]);assert.equal(JSON.stringify(sparse),before);
-const limited=scenario({worker:{count:1,cpu:22}},3);assert.equal([...vmMobility(limited)][0].status,'limited');
-const blocked=scenario({worker:{count:4,cpu:22,memory:120}},3);const blockedRows=[...vmMobility(blocked)];assert.ok(blockedRows.every(r=>r.status==='blocked'));assert.ok(blockedRows.every(r=>r.rejected.some(d=>d.reason.startsWith('NUMA CPU/memory'))));
+const limited=scenario({worker:{count:1,cpu:21}},3);assert.equal([...vmMobility(limited)][0].status,'limited');
+const blocked=scenario({worker:{count:4,cpu:21,memory:120}},3);const blockedRows=[...vmMobility(blocked)];assert.ok(blockedRows.every(r=>r.status==='blocked'));assert.ok(blockedRows.every(r=>r.rejected.some(d=>d.reason.startsWith('NUMA CPU/memory'))));
 const pets=scenario({etcd:{count:2},master:{count:2,cpu:8}},4);const petRows=[...vmMobility(pets)];assert.ok(petRows.filter(r=>r.name.startsWith('etcd')).every(r=>r.rejected.some(d=>d.reason.includes('one etcd'))));assert.ok(petRows.filter(r=>r.name.startsWith('master')).every(r=>r.rejected.some(d=>d.reason.includes('one master'))));
 for(const enabled of [true,false]){
  const s=assignHosts({...blocked,affinityEnabled:enabled});

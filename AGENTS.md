@@ -7,13 +7,13 @@ Read README.md, docs/HANDOFF.md, docs/MODEL.md, and docs/ARCHITECTURE.md before 
 ## Scope and working conventions
 
 - Preserve exactly three ESX clusters named AZ1, AZ2, and AZ3.
-- Support one or two Kubernetes clusters, each with independent profiles and deductions.
+- Support one or more Kubernetes clusters without a fixed cluster-count cap; default to one, each with independent profiles and deductions.
 - Preserve browser-saved scenarios. Do not clear storage, reset the example, or overwrite user imports to test a change.
 - Use a separate localhost port or isolated fixture for test scenarios. Do not mutate the live user's scenario for demonstrations.
 - Keep the UI concise. Put lengthy explanations inside existing collapsible details panels.
 - Implement only requested changes. Discuss assumptions before changing capacity semantics or physical/logical CPU and GB/GiB conventions.
 - Node types are etcd, master, ingress, and worker. Public is a legacy import alias, not a current UI label.
-- With affinity enabled, use independent master/ingress placement, per-cluster role separation, and the shared strict NUMA planner: two CPU cores and half the largest configured etcd memory per node reserved; four-vCPU etcd split 2+2 across two nodes. Do not restore mandatory pairs or worker-count caps.
+- With affinity enabled, use independent master/ingress placement, per-cluster role separation, and the shared strict NUMA planner: three CPU cores and half the largest configured etcd memory per node reserved; six-vCPU etcd split 3+3 across two nodes. Do not restore mandatory pairs or worker-count caps.
 - Do not reintroduce host pinning or dedicated pet hosts. Automatic host placement and the affinity toggle are the current design.
 
 ## Source and build
@@ -30,8 +30,8 @@ The Node tests cover model behavior, not full browser interaction. A passing sui
 
 ## Important model distinctions
 
-- Always leave the last ESX host in each AZ empty and label it Reserved for maintenance, with affinity on or off. ESX aggregate capacity reserves that same one host per AZ for N+1. Individual host capacities stay at configured size; NUMA memory capacity uses 90% of host memory divided by the NUMA node count (10% ESX overhead allowance).
-- Client workload budgets use placed worker VM resources minus node reservations and cluster services. Do not subtract the ESX N+1 reserve again from those budgets.
+- Always leave the last maintenanceReserve hosts in each AZ empty and label them Reserved for maintenance, with affinity on or off. The configurable shared reserve defaults to 1 (N+1), supports N+2 and higher, is saved in scenario JSON, and is also excluded from mobility destinations and aggregate capacity. Individual host capacities stay at configured size; NUMA memory capacity uses 90% of host memory divided by the NUMA node count (10% ESX overhead allowance).
+- Client workload budgets use placed worker resources minus per-worker node reserves, then the optional Kubernetes percentage reserve (on by default, exactly 1/6), then full platform overhead. This percentage reserve is separate from the ESX host reserve; never deduct ESX hosts again from client budgets.
 - VM/ESX memory inputs currently represent decimal GB. Workload budget memory is GiB. Preserve separate units and conversions.
 - ESX host/AZ CPU summaries use logical capacity. NUMA CPU bars compare allocated vCPUs against physical cores, matching NUMA placement and contention thresholds.
 - NUMA placement is derived planning output, not actual ESXi telemetry, vNUMA configuration, or enforced affinity.

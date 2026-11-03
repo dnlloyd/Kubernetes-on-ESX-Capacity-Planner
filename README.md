@@ -33,13 +33,19 @@ Source code does **not** contain the currently edited browser scenario. Before m
 
 Using the same browser and `http://127.0.0.1:4173` normally retains existing local storage. Still export JSON as a backup before transitioning. The example defaults differ from the user's saved HACAS scenario; do not reset to the example to recover current settings.
 
+The planner starts with one Kubernetes cluster. Use **Add cluster** to configure additional clusters with independent VM profiles and deductions; there is no fixed cluster-count cap.
+
 ## Current placement rules
 
-The last ESX host in each AZ is always kept empty and labeled Reserved for maintenance. This is the same reserve already deducted from aggregate N+1 capacity. With affinity enabled, the planner reserves an etcd slot on every NUMA node, models four-vCPU etcd as 2+2, and places master/ingress/worker VMs independently within local CPU and memory budgets. Masters and ingress are separated by Kubernetes cluster and role across hosts. See docs/MODEL.md for the full rules and saved-scenario migration.
+Configure **Reserved ESX hosts per AZ** under ESX hosts, then Apply configuration. The default is 1 (N+1); use 2 for N+2. The last reserved hosts stay empty and are labeled Reserved for maintenance. The same reserve is excluded from aggregate CPU/memory and vMotion destinations. With affinity enabled, the planner reserves an etcd slot on every NUMA node, models six-vCPU etcd as 3+3, and places master/ingress/worker VMs independently within local CPU and memory budgets. Masters and ingress are separated by Kubernetes cluster and role across hosts. See docs/MODEL.md for the full rules and saved-scenario migration.
 
 ## Modeled vMotion readiness
 
 Expand **Modeled vMotion readiness** below the placement board and click **Run assessment**. Each VM is tested independently against other active hosts in its AZ. Expand a result for eligible hosts and rejection reasons, or filter by AZ and status. Maintenance hosts cannot receive VMs. The assessment leaves placements unchanged, runs in the background with cancellation, and marks results out of date after placement inputs change. Results estimate model fit, not actual VMware compatibility or host evacuation.
+
+## Kubernetes capacity reserve
+
+The capacity section includes an on/off reserve for worker capacity unavailable during maintenance or disaster. It defaults to exactly one sixth (displayed 16.67%); expand Reserve settings to edit the percentage and Apply reserve. The deduction applies after per-worker node reserves and before full platform overhead. It is separate from reserved ESX hosts and does not move VMs. Scenario JSON retains the setting and capacity CSV includes its deduction. Older scenarios without this setting adopt the new default.
 
 ## Develop and check
 

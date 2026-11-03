@@ -4,11 +4,11 @@ Start with python3 -m http.server 4174 --bind 127.0.0.1 and open az-planner.html
 Use the Region Title to name an exported scenario. Import/Export scenario uses JSON to restore settings; Export capacity CSV is a report, not a restore file.
 
 CONFIGURATION
-One region contains AZ1, AZ2 and AZ3. Uniform ESX topology defines logical CPU as sockets × physical cores/socket × threads/core. Configure one or two Kubernetes clusters with independent etcd, master, ingress, and worker counts/sizes. Apply configuration commits drafts. Configuration collapses horizontally; ESX host cards collapse individually.
+One region contains AZ1, AZ2 and AZ3. Uniform ESX topology defines logical CPU as sockets × physical cores/socket × threads/core. Configure one or more Kubernetes clusters with independent etcd, master, ingress, and worker counts/sizes. Apply configuration commits drafts. Configuration collapses horizontally; ESX host cards collapse individually.
 
 PLACEMENT RULES ON
-At most one etcd per host globally. Four-vCPU etcd VMs are modeled with 2 vCPUs and half their memory in each of two NUMA nodes. Incompatible etcd profiles remain unplaced, with a warning.
-Every NUMA node reserves two CPU cores even without etcd. It also reserves half the largest configured etcd VM memory (zero memory reserve if no etcd are configured). A placed etcd consumes that reserve.
+At most one etcd per host globally. Six-vCPU etcd VMs are modeled with 3 vCPUs and half their memory in each of two NUMA nodes. Incompatible etcd profiles remain unplaced, with a warning.
+Every NUMA node reserves three CPU cores even without etcd. It also reserves half the largest configured etcd VM memory (zero memory reserve if no etcd are configured). A placed etcd consumes that reserve.
 Workers, masters, and ingress VMs must fit locally inside the remaining physical CPU and memory budgets. At most one master and one ingress from each Kubernetes cluster per host. Number matching and master/ingress pairing are not required. Workers have no independent count cap: their resource sizes determine fit.
 Individual VM moves between AZs never move a partner. Host assignments are automatic. Failed placements remain visible as unplaced. The deterministic packing heuristic may leave placements unresolved even where a different packing could fit; it is not a global optimizer.
 
@@ -19,7 +19,7 @@ NUMA
 NUMA CPU meters compare allocated vCPUs with physical cores. Memory capacity per node is host GB × 0.9 ÷ node count (a fixed 10% ESX overhead planning allowance). Local VMs appear inside a NUMA node; etcd's 2+2 split appears once across both columns. Node totals include that allocation. Etcd memory is shown equally split as a simulation assumption, not measured locality. Disabled-mode NUMA spanning/overflow estimates retain the earlier behavior.
 
 CAPACITY
-ESX AZ totals reserve one host for N+1; this does not simulate evacuation or reduce each physical host's displayed capacity. Client workload budgets use placed workers minus node reservations and baseline services. No extra N+1 deduction is taken from client budgets. VM/host inputs are decimal GB; workload memory budgets use GiB.
+ESX AZ totals exclude the configured maintenance hosts (default 1 for N+1, 2 for N+2); this does not simulate evacuation or reduce each physical host's displayed capacity. Client workload budgets use placed workers minus node reservations and baseline services. No extra N+1 deduction is taken from client budgets. VM/host inputs are decimal GB; workload memory budgets use GiB.
 Default deductions per Kubernetes cluster: 0.5 vCPU and 8.5 GiB per placed worker, plus fixed Platform overhead of 60 vCPUs and 250 GiB per cluster. These are editable planning allowances for node processes and shared worker-hosted platform workloads; saved deductions are preserved. The collapsible details explain how they affect client capacity and allow independent edits; Apply deductions saves changes.
 
 EXPORTS AND COMPATIBILITY
@@ -29,7 +29,10 @@ Capacity CSV includes both clusters' client summaries, gross resources, deductio
 This app simulates policies only. It does not configure ESXi, reserve physical CPU execution, or guarantee actual VMware NUMA locality, vMotion behavior, HA recovery or optimal performance.
 
 MAINTENANCE RESERVE
-The last ESX host in every AZ stays empty and is labeled Reserved for maintenance, whether placement rules are on or off. The same host is already deducted from AZ and region N+1 totals. Older saved scenarios using that host are repacked within their current AZs. VMs that cannot fit remain visibly unplaced. An AZ with only one host has no schedulable hosts. Client budgets use placed workers without another N+1 deduction.
+Set Reserved ESX hosts per AZ under ESX hosts and Apply configuration. The default is 1 (N+1); 2 means N+2. The input must be a whole number from 1 through the smallest AZ host count. The last reserved hosts in every AZ stay empty and are labeled Reserved for maintenance, with placement rules on or off. They cannot receive VMs or be vMotion destinations, and are already deducted from AZ and region capacity. Older saved scenarios using that host are repacked within their current AZs. VMs that cannot fit remain visibly unplaced. An AZ with all its hosts reserved has no schedulable hosts. Client budgets use placed workers without another N+1 deduction.
 
 MODELED VMOTION READINESS
 Expand Modeled vMotion readiness below the placement board and click Run assessment. Green means at least two eligible hosts; amber means one; red means none. Unplaced VMs are counted separately. Filter by AZ/status and expand a VM result for destinations and rejection reasons. Maintenance hosts are unavailable in both affinity modes. With rules off, this assessment still requires destination CPU/memory capacity. Runs in the background with progress and Cancel. Relevant scenario changes mark results out of date; run again. Assessments do not change placements, prove host evacuation, or validate actual VMware compatibility.
+
+KUBERNETES CAPACITY RESERVE
+Use the Kubernetes capacity reserve switch in Kubernetes cluster capacity to allow for worker resources unavailable during maintenance or disaster. Default on at exactly 1/6 (about 16.67%). Reserve settings lets you enter a percentage from 0 to 100, then Apply reserve. The same percentage applies to CPU/memory in every cluster after per-worker node reserves and before fixed platform overhead. Turning it off removes only this percentage deduction. ESX host reserves, VM placement and mobility are unaffected. Settings persist in scenario JSON; older files without them start on. The capacity CSV shows the deduction, percentage and state.
